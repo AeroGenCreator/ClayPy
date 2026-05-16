@@ -5,13 +5,8 @@ PACKAGE = {
     "menus": [
         {
         "label": "Inventario",
-        "route": "inventory.table",
+        "route": "inventory.views.inventory_table",
         "icons": "all_inbox"
-        },
-        {
-        "label": "Ajustes",
-        "route": "Inventario.ajustes",
-        "icons": "settings"
         }
     ],
     "views": {"inventory.table": "InventoryTable"}

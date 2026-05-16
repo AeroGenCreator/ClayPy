@@ -1,4 +1,4 @@
-# 🔥 ClayPy; _[PanCakesORM]() & [Flet]()_ based - ERP Framework -
+# 🔥 ClayPy _[PanCakesORM]() & [Flet]()_ based ERP Framework
 
 ![image](assets/banner.png)
 

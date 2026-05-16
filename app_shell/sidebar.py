@@ -10,13 +10,17 @@ class Sidebar(ft.Column):
 
     def __init__(self, metadata, app_page: ft.Page):
         super().__init__()
+        # Variables de construccion
         self.metadata = metadata
         self.app_page = app_page
+        # Atributos heredados
         self.bgcolor = ft.Colors.BLUE_GREY_900
         self.alignment = ft.MainAxisAlignment.START
         self.spacing = 10
         self.wrap = False
-        self.intrinsic_width = True
+        self.expand = False
+        self.width = 225
+        self.intrinsic_width = False
         # Boton de cerrar sesion 'Pendiente'
         self.logout = ft.TextButton(
             content="Cerrar Sesion",
@@ -67,7 +71,7 @@ class Sidebar(ft.Column):
 
                 button = ft.TextButton(
                     content=label,
-                    width=200,
+                    width=215,
                     style=ft.ButtonStyle(
                         bgcolor={"": ft.Colors.GREY_900},
                         color={"": ft.Colors.WHITE}
@@ -84,9 +88,10 @@ class Sidebar(ft.Column):
 
         # Agregar Estaticos en Sidebar
         self.BUTTON.insert(0, self.logout)
+        self.BUTTON.append(ft.Text("ALAI INC.", weight=ft.FontWeight.W_400))
         self.controls = self.BUTTON
 
     def go_to(self, _, route, app_page) -> None:
-        txt = ft.Text(route)
-        app_page.add(txt)
+        composed_route = f"packages.{route}"
+        app_page.add(ft.Text(composed_route))
         app_page.update()
