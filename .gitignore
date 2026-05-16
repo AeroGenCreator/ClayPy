@@ -1,0 +1,9 @@
+# Entorno virtual
+.venv/
+
+# Credenciales
+.env
+
+# Caches
+__pycache__/
+*pyc
