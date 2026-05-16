@@ -7,3 +7,6 @@
 # Caches
 __pycache__/
 *pyc
+
+# Mac
+.DS_STORE

@@ -8,10 +8,16 @@ class Sidebar(ft.Column):
     Construccion dinamica de botones y rutas de navegacion.
     """
 
-    def __init__(self, metadata, app_page: ft.Page):
+    def __init__(
+        self,
+        metadata,
+        shell,
+        app_page: ft.Page
+    ):
         super().__init__()
         # Variables de construccion
         self.metadata = metadata
+        self.shell = shell
         self.app_page = app_page
         # Atributos heredados
         self.bgcolor = ft.Colors.BLUE_GREY_900
@@ -79,8 +85,7 @@ class Sidebar(ft.Column):
                     icon=getattr(ft.Icons, emoji, None),
                     on_click=lambda e, r=route: self.go_to(
                         e,
-                        r,
-                        self.app_page
+                        r
                     )
                 )
 
@@ -91,7 +96,6 @@ class Sidebar(ft.Column):
         self.BUTTON.append(ft.Text("ALAI INC.", weight=ft.FontWeight.W_400))
         self.controls = self.BUTTON
 
-    def go_to(self, _, route, app_page) -> None:
+    def go_to(self, _, route) -> None:
         composed_route = f"packages.{route}"
-        app_page.add(ft.Text(composed_route))
-        app_page.update()
+        self.shell.navigate(self.shell, route=composed_route)
