@@ -6,15 +6,17 @@ import flet as ft
 from app_shell.container import MainContainer
 from app_shell.shell import ClayPyShell
 from app_shell.sidebar import Sidebar
-from framework.package_loader import package_loader
+from framework.package_loader import package_loader, run_models
 
-loaded_metadata = package_loader()
+loaded_menu, loaded_view, loaded_models = package_loader()
+run_models(models_pack=loaded_models)
 
 def main(page: ft.Page):
 
     container = MainContainer(content=None)
     sidebar = Sidebar(
-        metadata=loaded_metadata,
+        menu=loaded_menu,
+        view=loaded_view,
         app_page=page,
         shell=ClayPyShell(container=container, page=page)
     )

@@ -10,13 +10,15 @@ class Sidebar(ft.Column):
 
     def __init__(
         self,
-        metadata,
+        menu,
+        view,
         shell,
         app_page: ft.Page
     ):
         super().__init__()
         # Variables de construccion
-        self.metadata = metadata
+        self.menu = menu
+        self.view = view
         self.shell = shell
         self.app_page = app_page
         # Atributos heredados
@@ -42,40 +44,44 @@ class Sidebar(ft.Column):
         Construye controladores lateralas del sidebar.
         1. Iterar metadata
         2. Boton 'Crerrar Sesion'
-        3. Controladres 'Boton'
+        3. Controladres 'Boton' - Ruta Vista
         4. Logo
         """
-
-        self.ROUTES = {}
+        self.PATHS = {}
         self.BUTTON = []
-        # Iteracion anidada de; {pack, {labe: data}, ...}
-        for pack, meta in self.metadata.items():
-            # Lista de botones metadata
-            MENU = meta.get("menus", [])
-            # Validar lista
-            if not MENU:
-                raise ValueError(
-                    f"Invalid metadata for following package: '{pack}'. "
-                    "KEY; 'menu' was not found or its empty."
-                )
-            # Iteracion de boton | ruta
-            for controller in MENU:
-                label = controller.get("label", "")
-                route = controller.get("route", "")
-                emoji = controller.get("icons", "").upper()
 
-                if (label == "" or route == "" or emoji == ""):
-                    raise ValueError(
-                        "Either 'label' or 'route' keys were empty. "
-                        "Another posibility: They were not found in "
-                        "'menus' keys."
-                        f"menus - {MENU}, label - {label}, route - {route} "
-                        f"icons - {emoji}."
-                    )
+        MENU_KEYS = list(self.menu.keys())
+        VIEW_KEYS = list(self.view.keys())
 
-                self.ROUTES.update({label: route})
+        if MENU_KEYS != VIEW_KEYS:
+            raise KeyError
 
-                button = ft.TextButton(
+        for k in MENU_KEYS:
+
+            menu_pack = self.menu.get(k)
+            view_pack = self.view.get(k)
+
+            label = menu_pack.get("label", "")
+            route = menu_pack.get("route", "")
+            emoji = menu_pack.get("icons", "").upper()
+
+            path = view_pack.get("path", "")
+            clas = view_pack.get("class", "")
+
+            validate = (
+                (label == ""),
+                (route == ""),
+                (emoji == ""),
+                (path == ""),
+                (clas == ""),
+            )
+
+            if any(validate):
+                raise ValueError
+
+            self.PATHS = {k: path}
+
+            button = ft.TextButton(
                     content=label,
                     width=215,
                     style=ft.ButtonStyle(
@@ -83,20 +89,20 @@ class Sidebar(ft.Column):
                         color={"": ft.Colors.WHITE}
                     ),
                     icon=getattr(ft.Icons, emoji, None),
-                    on_click=lambda e, r=route: self.go_to(
+                    on_click=lambda e, r=path, c=clas: self.go_to(
                         e,
-                        r
+                        route=r,
+                        view=c
                     )
                 )
 
-                self.BUTTON.append(button)
+            self.BUTTON.append(button)
 
         # Agregar Estaticos en Sidebar
         self.BUTTON.insert(0, self.logout)
         self.BUTTON.append(ft.Text("ALAI INC.", weight=ft.FontWeight.W_400))
         self.controls = self.BUTTON
 
-    def go_to(self, _, route) -> None:
-        composed_route = f"packages.{route}"
-        self.shell.view_extraction(route=composed_route)
+    def go_to(self, _, route, view) -> None:
+        self.shell.view_extraction(route=route, view=view)
 

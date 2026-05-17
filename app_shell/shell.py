@@ -8,9 +8,9 @@ class ClayPyShell:
         self.container = container
         self.page = page
 
-    def view_extraction(self, route):
+    def view_extraction(self, route, view):
         module = importlib.import_module(route)
-        VIEW = getattr(module, "View", None)
+        VIEW = getattr(module, view, None)
 
         if VIEW is None:
             raise ValueError(
