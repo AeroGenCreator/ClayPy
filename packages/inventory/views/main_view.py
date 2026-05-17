@@ -1,5 +1,7 @@
 import flet as ft
-from ..backend.expose_models import get_inventory
+
+from ..backend.expose_models import get_inv_dicc, get_inv_json, get_inv_raw
+
 
 class View(ft.Column):
     def __init__(self):
@@ -15,7 +17,11 @@ class View(ft.Column):
             ]
         )
 
-        table = ft.Text(get_inventory()) 
+        table = ft.Row(controls=[
+        ft.Text(get_inv_raw()),
+        ft.Text(get_inv_dicc()),
+        ft.Text(get_inv_json())
+        ])
 
         root = ft.Column(
             controls=[
@@ -23,5 +29,5 @@ class View(ft.Column):
                 table
             ]
         )
-        
+
         return root
