@@ -12,6 +12,7 @@ loaded_menu, loaded_view, loaded_models = package_loader()
 run_models(models_pack=loaded_models)
 
 def main(page: ft.Page):
+    page.title = "ClayPy Framework"
 
     container = MainContainer(content=None)
     sidebar = Sidebar(
