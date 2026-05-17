@@ -2,6 +2,8 @@
 
 ![image](assets/banner.png)
 
+A traves de _ClayPy_ es posible el desarrollo de paquetes SQL -> LOGICA -> FLET a traves de el acomplamiento y desacoplamiento de modulos almacenados en el directorio packages.
+
 ## 🏗️ Jerarquía de directorios
 
 ```txt

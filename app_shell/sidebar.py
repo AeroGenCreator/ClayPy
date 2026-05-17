@@ -98,4 +98,5 @@ class Sidebar(ft.Column):
 
     def go_to(self, _, route) -> None:
         composed_route = f"packages.{route}"
-        self.shell.navigate(self.shell, route=composed_route)
+        self.shell.view_extraction(route=composed_route)
+

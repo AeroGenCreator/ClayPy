@@ -2,21 +2,30 @@
 
 # Carga de metadata
 import flet as ft
+
 from app_shell.container import MainContainer
+from app_shell.shell import ClayPyShell
 from app_shell.sidebar import Sidebar
-from app_shell.shell import Shell
 from framework.package_loader import package_loader
 
 loaded_metadata = package_loader()
 
 def main(page: ft.Page):
+
+    container = MainContainer(content=None)
     sidebar = Sidebar(
         metadata=loaded_metadata,
         app_page=page,
-        shell=Shell
+        shell=ClayPyShell(container=container, page=page)
     )
-    container = MainContainer(content=ft.Text("CONT"))
-    black_box = Shell(page=page, sidebar=sidebar, container=container)
+
+    page.add(
+        ft.Row(
+            controls=[sidebar, container],
+            expand=True,
+            vertical_alignment=ft.CrossAxisAlignment.STRETCH
+        )
+    )
 
 if __name__ == "__main__":
     ft.run(main)
