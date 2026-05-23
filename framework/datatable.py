@@ -2,53 +2,70 @@ import flet as ft
 
 
 class DataTableORM(ft.Row):
-    """
-    Attr. instancia: container
-    Attr. instancia: content
-    Attr. instancia: positions
-    Attr. instancia: columns
-    Attr. instancia: tables
-    Attr. instancia: datatable   
 
-    """
-    def __init__(self, container):
+    def __init__(self, container, width=None):
         super().__init__()
+
         self.container = container
+        self.column_spacing = 15 if width is None else width
+        self.expand = False
+
         self.unpack()
 
-    def unpack(self) -> None:
-        self.content = self.container[0]  #  Indexar el contenido
+    def selection(self, e):
+        return
+
+    def unpack(self):
+
+        self.content = self.container[0]
         self.positions = self.content["@positions@"]
-        
-        TABLES = []  # Tablas del componente
+
+        TABLES = []
+
         for tags, values in self.content.items():
             if tags != "@positions@":
                 TABLES.append(tags)
-        
-        self.columns = []  # Columnas sin formato
-        self.tables = []  # Tablas alineadas con columnas NO FORMATO
-        DATATABLE = {}  # Columnas con formato: valores
+
+        DATATABLE = {}
         VECTORS = []
+
         for TAB in TABLES:
             DICC = self.content[TAB]
+
             for column, values in DICC.items():
-                DATATABLE.update({f"{TAB} {column}": values})
+                DATATABLE.update({column: values})
                 VECTORS.append(values)
-                self.columns.append(column)
-                self.tables.append(TAB)
 
-        TRANS = list(zip(*VECTORS)) 
-        COLUMNS = [ft.DataColumn(label=ft.Text(COL)) for COL in DATATABLE.keys()]
-        ROWS = [ft.DataRow(cells=[ft.DataCell(ft.Text(cell)) for cell in row]) for row in TRANS]
+        TRANS = list(zip(*VECTORS))
 
-        datatable = ft.DataTable(
-            columns=COLUMNS,
-            rows=ROWS,
+        columns = [
+            ft.DataColumn(label=ft.Text(str(COL)))
+            for COL in DATATABLE.keys()
+        ]
+
+        rows = [
+            ft.DataRow(
+                cells=[
+                    ft.DataCell(ft.Text(str(cell)))
+                    for cell in row
+                ],
+                on_select_change=self.selection,
+            )
+            for row in TRANS
+        ]
+
+        self.datatable = ft.DataTable(
+            columns=columns,
+            rows=rows,
+            show_checkbox_column=True,
         )
 
-        self.datatable = datatable
-
-    def build(self) -> None:
-        self.controls = [self.datatable]
-
-        return
+        self.controls.append(
+            ft.Container(
+                expand=True,
+                content=self.datatable,
+                bgcolor=ft.Colors.BLUE_GREY_100,
+                border_radius=10,
+                padding=10,
+            )
+        )

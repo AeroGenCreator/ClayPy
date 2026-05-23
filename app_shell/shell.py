@@ -10,14 +10,14 @@ class ClayPyShell:
 
     def view_extraction(self, route, view):
         module = importlib.import_module(route)
-        VIEW = getattr(module, view, None)
+        View = getattr(module, view, None)
 
-        if VIEW is None:
+        if View is None:
             raise ValueError(
                 "Following path does not contain a Flet 'view'. "
                 f"{module}. Make sure 'View' class exist."
             )
 
-        view = VIEW()
+        view = View()
         self.container.content = view.build()
         self.page.update()

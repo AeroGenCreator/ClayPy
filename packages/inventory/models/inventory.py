@@ -13,3 +13,4 @@ class Inventory(PanCakesORM):
         unique=True,
         required=True
     )
+    age = datatype.Int("Edad")
