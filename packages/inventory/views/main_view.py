@@ -17,9 +17,7 @@ class View(ft.Column):
             ]
         )
 
-        table = ft.Row(controls=[
-            get_inventory()
-        ])
+        table = get_inventory()
 
         root = ft.Column(
             controls=[
