@@ -16,6 +16,8 @@ class DataTableORM(ft.Row):
     Attr. instancia: flet_rows: De esta tabla List[ft.RowData()]
     Attr. instancia: datatable: ft.DataTable() - objeto
     Attr. instancia: datatable_container: ft.Container(ft.DataTable())
+    Attr. instancia: active_row: Almacena la fila seleccionada.
+    Attr. instancia: form_fields: Campos del formulario.
 
     Meth. instancia: unpack(); Separa: Posición, Columnas, Vectores
     Meth. instancia: make_columns(): De esta tabla; ft.Columns()
@@ -36,6 +38,7 @@ class DataTableORM(ft.Row):
         self.raw_data = {}
         self.display = []
         self.edition_form = ft.NavigationDrawer()
+        self.active_row = None
         self.unpack()
         self.make_columns()
         self.page_indexes()
@@ -77,17 +80,15 @@ class DataTableORM(ft.Row):
         self.vector_length = len(VECTORS[0])
 
     def make_columns(self):
-        """ De esta tabla columnas """
+        """De esta tabla columnas"""
         columns = [
-            ft.DataColumn(
-                label=ft.Text(str(COL))
-            )
+            ft.DataColumn(label=ft.Text(str(COL)))
             for COL in self.raw_data.keys()
         ]
         self.flet_columns = columns
 
     def page_indexes(self) -> None:
-        """ Numero Paginas: {indice: [indice, indice]}"""
+        """Numero Paginas: {indice: [indice, indice]}"""
         length = self.vector_length
         segments = {}
         spliter = 20
@@ -99,27 +100,21 @@ class DataTableORM(ft.Row):
         self.page_indexes_reference = segments
 
     def segment_data(self) -> None:
-        """ Hoja de 20 datos por indice de pagina """
+        """Hoja de 20 datos por indice de pagina"""
         sheet = []
         order = self.page_indexes_reference[self.sheet_count]
         for column, vector in self.raw_data.items():
-            sheet.append(
-                vector[order[0]: order[1]]
-            )
+            sheet.append(vector[order[0] : order[1]])
         self.display = sheet
 
     def make_rows(self) -> None:
-        """ Crear filas flet segmentadas, default primeras 20 """
+        """Crear filas flet segmentadas, default primeras 20"""
         transposition = list(zip(*self.display))
         rows = [
             ft.DataRow(
                 on_select_change=self.selected_row_manager,
                 selected=False,
-                cells=[
-                    ft.DataCell(
-                        ft.Text(cell)
-                )
-                for cell in row]
+                cells=[ft.DataCell(ft.Text(cell)) for cell in row],
             )
             for row in transposition
         ]
@@ -129,14 +124,14 @@ class DataTableORM(ft.Row):
         self.datatable = ft.DataTable(
             columns=self.flet_columns,
             rows=self.flet_rows,
-            show_checkbox_column=True
+            show_checkbox_column=True,
         )
         self.datatable_container = ft.Container(
             expand=True,
             content=self.datatable,
-            bgcolor=ft.Colors.BLUE_GREY_100,
+            bgcolor=ft.Colors.BLACK_12,
             border_radius=10,
-            padding=0
+            padding=0,
         )
 
     def mount_widgets(self) -> None:
@@ -144,29 +139,30 @@ class DataTableORM(ft.Row):
 
     def selected_row_manager(self, e) -> None:
         self.selected_row(e)
-        self.sidebar_drawer(e)
+        # Si checkbox de fila
+        if e.control.selected:
+            # Control del evento de seleccion guardado
+            self.active_row = e.control
+            self.build_and_open_drawer()
+
         pass
 
     def selected_row(self, e) -> None:
-        check = e.control.selected
-        if check:
-            e.control.selected = False
-        else:
-            e.control.selected = True
+        """Toggle de checkbox de fila."""
+        e.control.selected = not e.control.selected
         self.update()
 
-    async def sidebar_drawer(self, e) -> None:
-        edition_form(e=e)
-        await self.datatable_container.show_drawer()
+    def build_and_open_drawer(self):
+        """Construccion de formula basado en los campos de fila seleccionada"""
+        page = self.page
+        self.form_fields = []
+        columns = list(self.raw_data.keys())
 
-    def edition_form(self, e):
-        drawer = ft.NavigationDrawer(
-            controls=[ft.Text("Abierto")]
-        )
-        pass
+        for i, cell in enumerate(self.active_row.cells):
+            current_value = cell.content.value
+            
 
     def sheet_manager(self, e):
         # Si cambio de pagina
         # Si filtro
         pass
-
