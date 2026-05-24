@@ -28,23 +28,24 @@ class DataTableORM(ft.Row):
     Meth. instancia: edition_form(): Formulario de edicion
     """
 
-    def __init__(self, container, width=None):
+    def __init__(self, container, width=None, backend_controller=None):
         super().__init__()
 
         self.container = container
         self.column_spacing = 15 if width is None else width
-        self.expand = False
+        self.backend_controller = backend_controller
+        self.expand = True
         self.sheet_count = 0
         self.raw_data = {}
         self.display = []
-        self.edition_form = ft.NavigationDrawer()
         self.active_row = None
         self.unpack()
         self.make_columns()
         self.page_indexes()
         self.segment_data()
         self.make_rows()
-        self.init__datatable()
+        self.init_datatable()
+        self.init_sideform()
         self.mount_widgets()
 
     def transposition_data_filter(self, index):
@@ -120,47 +121,67 @@ class DataTableORM(ft.Row):
         ]
         self.flet_rows = rows
 
-    def init__datatable(self) -> None:
+    def init_datatable(self) -> None:
         self.datatable = ft.DataTable(
             columns=self.flet_columns,
             rows=self.flet_rows,
             show_checkbox_column=True,
         )
         self.datatable_container = ft.Container(
-            expand=True,
-            content=self.datatable,
+            expand=3,
+            content=ft.ListView(controls=[self.datatable], expand=True),
             bgcolor=ft.Colors.BLACK_12,
             border_radius=10,
-            padding=0,
+            padding=5,
+        )
+
+    def init_sideform(self):
+        self.sideform_container = ft.Container(
+            expand=1,
+            content=[],
+            bgcolor=ft.Colors.BLACK_12,
+            border_radius=10,
+            padding=5,
+            visible=False
         )
 
     def mount_widgets(self) -> None:
-        self.controls.append(self.datatable_container)
+        self.controls.extend(
+            [
+            self.datatable_container,
+            self.sideform_container
+            ]
+        )
 
     def selected_row_manager(self, e) -> None:
+        # Control del evento de seleccion guardado
+        if e != self.active_row and self.active_row is not None:
+            self.active_row.selected = not self.active_row.selected
+        self.active_row = e.control
+        self.fill_form()
         self.selected_row(e)
-        # Si checkbox de fila
-        if e.control.selected:
-            # Control del evento de seleccion guardado
-            self.active_row = e.control
-            self.build_and_open_drawer()
 
-        pass
+    def fill_form(self):
+        columns = list(self.raw_data.keys())
+        fields = []
+
+        for idx, cell in enumerate(self.active_row.cells):
+            fields.append(
+                ft.TextField(
+                    label=columns[idx],
+                    value=cell.content.value
+                )
+            )
+        fields.append(ft.FilledButton(content="Guardar"))
+        form = ft.ListView(controls=fields, expand=True, spacing=25)
+        self.form = form
 
     def selected_row(self, e) -> None:
-        """Toggle de checkbox de fila."""
+        """ Toggle de checkbox de fila """
         e.control.selected = not e.control.selected
+        self.sideform_container.visible = not self.sideform_container.visible
+        self.sideform_container.content = self.form
         self.update()
-
-    def build_and_open_drawer(self):
-        """Construccion de formula basado en los campos de fila seleccionada"""
-        page = self.page
-        self.form_fields = []
-        columns = list(self.raw_data.keys())
-
-        for i, cell in enumerate(self.active_row.cells):
-            current_value = cell.content.value
-            
 
     def sheet_manager(self, e):
         # Si cambio de pagina
