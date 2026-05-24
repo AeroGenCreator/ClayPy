@@ -13,6 +13,8 @@ run_models(models_pack=loaded_models)
 
 def main(page: ft.Page):
     page.title = "ClayPy Framework"
+    page.window.width = 1100
+    page.window.height = 900
 
     container = MainContainer(content=None)
     sidebar = Sidebar(

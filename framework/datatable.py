@@ -1,7 +1,7 @@
 import flet as ft
 
 
-class DataTableORM(ft.Row):
+class DataTableORM(ft.Column):
     """
     Attr. instancia: container; Toda la data ORM
     Attr. instancia: content: ORM diccionario
@@ -44,6 +44,10 @@ class DataTableORM(ft.Row):
         self.page_indexes()
         self.segment_data()
         self.make_rows()
+        self.page_counter_widget_method()
+        self.new_entry_button_method()
+        self.init_page_counter()
+        self.init_new_entry()
         self.init_datatable()
         self.init_sideform()
         self.mount_widgets()
@@ -97,7 +101,7 @@ class DataTableORM(ft.Row):
         counter = 0
         for i in range(chunks):
             segments.update({counter: [counter, counter + spliter]})
-            counter += spliter
+            counter += 1
         self.page_indexes_reference = segments
 
     def segment_data(self) -> None:
@@ -121,6 +125,76 @@ class DataTableORM(ft.Row):
         ]
         self.flet_rows = rows
 
+    def page_counter_widget_method(self) -> None:
+        self.current_page = ft.Text(value=0,weight=ft.FontWeight.BOLD)
+        widget = ft.Row(
+            controls=[
+                ft.Column(
+                    ft.FilledButton(
+                        content="Volver",
+                        icon=ft.Icons.REMOVE,
+                        expand=1,
+                        style=ft.ButtonStyle(shape=ft.StadiumBorder()),
+                        key="previous_page",
+                        on_click=self.sheet_manager
+                    )
+                ),
+                ft.Column(
+                    controls=self.current_page,
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER
+                ),
+                ft.Column(
+                    ft.FilledButton(
+                        content="Avanzar",
+                        icon=ft.Icons.ADD,
+                        expand=1,
+                        style=ft.ButtonStyle(shape=ft.StadiumBorder()),
+                        key="next_page",
+                        on_click=self.sheet_manager
+                    )
+                )
+            ],
+            expand=1,
+            visible=True
+        )
+        self.page_counter_widget = widget
+
+    def new_entry_button_method(self):
+        widget = ft.Column(
+            controls=[
+                ft.FilledButton(
+                    content="Nuevo Registro",
+                    icon=ft.Icons.CREATE,
+                    expand=True,
+                    style=ft.ButtonStyle(shape=ft.StadiumBorder())
+                )
+            ],
+            expand=1,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER
+        )
+        self.new_entry_widget = widget
+
+    def init_page_counter(self) -> None:
+        self.page_counter_container = ft.Container(
+            expand=1,
+            content=self.page_counter_widget,
+            bgcolor=ft.Colors.BLACK_12,
+            border_radius=10,
+            padding=15
+        )
+
+    def init_filters(self) -> None:
+        pass
+
+    def init_new_entry(self):
+        self.new_entry_container = ft.Container(
+            expand=1,
+            content=self.new_entry_widget,
+            bgcolor=ft.Colors.BLACK_12,
+            border_radius=10,
+            padding=15
+        )
+
     def init_datatable(self) -> None:
         self.datatable = ft.DataTable(
             columns=self.flet_columns,
@@ -128,7 +202,7 @@ class DataTableORM(ft.Row):
             show_checkbox_column=True,
         )
         self.datatable_container = ft.Container(
-            expand=3,
+            expand=2,
             content=ft.ListView(controls=[self.datatable], expand=True),
             bgcolor=ft.Colors.BLACK_12,
             border_radius=10,
@@ -137,8 +211,8 @@ class DataTableORM(ft.Row):
 
     def init_sideform(self):
         self.sideform_container = ft.Container(
-            expand=1,
-            content=[],
+            expand=2,
+            content=None,
             bgcolor=ft.Colors.BLACK_12,
             border_radius=10,
             padding=5,
@@ -146,10 +220,24 @@ class DataTableORM(ft.Row):
         )
 
     def mount_widgets(self) -> None:
+        headers_row = ft.Row(
+            controls=[
+                self.page_counter_container,
+                self.new_entry_container
+            ],
+            expand=1
+        )
+        content_row = ft.Row(
+            controls=[
+                self.datatable_container,
+                self.sideform_container
+                ],
+            expand=10
+        )
         self.controls.extend(
             [
-            self.datatable_container,
-            self.sideform_container
+            headers_row,
+            content_row
             ]
         )
 
@@ -183,7 +271,15 @@ class DataTableORM(ft.Row):
         self.sideform_container.content = self.form
         self.update()
 
+    def page_counter_on_change(self, llave):
+        index = int(self.current_page.value)
+        if llave == "previous_page" and index > 0:
+            self.current_page.value -= 1
+        if llave == "next_page" and index < list(self.page_indexes_reference.keys())[-1]:
+            self.current_page.value += 1
+
     def sheet_manager(self, e):
-        # Si cambio de pagina
-        # Si filtro
-        pass
+        llave = e.control.key
+        if llave in ("previous_page", "next_page"):
+            self.page_counter_on_change(llave)
+        self.page.update()
