@@ -3,37 +3,41 @@ import flet as ft
 
 class DataTableORM(ft.Column):
     """
-    Attr. instancia: container; Toda la data ORM
-    Attr. instancia: content: ORM diccionario
-    Attr. instancia: positions: {tabla: {columnas: posicion}}
-    Attr. instancia: vector_length: Total de filas
-    Attr. instancia: column_spacing; Espacio entre columnas
-    Attr. instancia: expand: Usar toda la fila
-    Attr. instancia: sheet_count: Indice de pagina actual
-    Attr. instancia: raw_data: {columna: vector}
-    Attr. instancia: display: Vector indexado segun condicion (pagina | filtro)
-    Attr. instancia: flet_columns: De esta tabla List[ft.Columns]
-    Attr. instancia: flet_rows: De esta tabla List[ft.RowData()]
-    Attr. instancia: datatable: ft.DataTable() - objeto
-    Attr. instancia: datatable_container: ft.Container(ft.DataTable())
-    Attr. instancia: active_row: Almacena la fila seleccionada.
-    Attr. instancia: form_fields: Campos del formulario.
+    Attr. ins: container; Toda la data ORM
+    Attr. ins: content: ORM diccionario
+    Attr. ins: positions: {tabla: {columnas: posicion}}
+    Attr. ins: vector_length: Total de filas
+    Attr. ins: column_spacing; Espacio entre columnas
+    Attr. ins: expand: Usar toda la fila
+    Attr. ins: sheet_count: Indice de pagina actual
+    Attr. ins: raw_data: {columna: vector}
+    Attr. ins: display: Vector indexado segun condicion (pagina | filtro)
+    Attr. ins: flet_columns: De esta tabla List[ft.Columns]
+    Attr. ins: flet_rows: De esta tabla List[ft.RowData()]
+    Attr. ins: datatable: ft.DataTable() - objeto
+    Attr. ins: datatable_container: ft.Container(ft.DataTable())
+    Attr. ins: active_row: Almacena la fila seleccionada.
+    Attr. ins: form_fields: Campos del formulario.
 
-    Meth. instancia: unpack(); Separa: Posición, Columnas, Vectores
-    Meth. instancia: make_columns(): De esta tabla; ft.Columns()
-    Meth. instancia: init__datatable(): ft.DataTable() - ft.Container()
-    Meth. instancia: mount_widgets(): Monta widgets en la fila ft.Row - (Padre).
-    Meth. instancia: selected_row_manager(): Seleccion - Formulario
-    Meth. instancia: selected_row(): Checkbox event
-    Meth. instancia: edition_form(): Formulario de edicion
+    Meth. ins: unpack(); Separa: Posición, Columnas, Vectores
+    Meth. ins: make_columns(): De esta tabla; ft.Columns()
+    Meth. ins: init__datatable(): ft.DataTable() - ft.Container()
+    Meth. ins: mount_widgets(): Monta widgets en la fila ft.Row - (Padre).
+    Meth. ins: selected_row_manager(): Seleccion - Formulario
+    Meth. ins: selected_row(): Checkbox event
+    Meth. ins: edition_form(): Formulario de edicion
     """
 
-    def __init__(self, container, width=None, backend_controller=None):
+    def __init__(self, container, width=None, controllers=None):
         super().__init__()
-        # Atributos Instancia
+        # Inyeccion:
         self.container = container
         self.column_spacing = 15 if width is None else width
-        self.backend_controller = backend_controller
+        self.controllers = controllers
+        self.injection_filter = None
+        self.injection_fields = None
+        self.inyection_assets = None
+
         self.expand = True
         self.sheet_count = 0
         self.raw_data = {}
@@ -96,13 +100,13 @@ class DataTableORM(ft.Column):
         length = self.vector_length
         segments = {}
         offset = 0
-        limit = 20
+        limit = 12
         chunks = (length // limit) + 1
         counter = 0
         for i in range(chunks):
             segments.update({counter: [offset, limit]})
-            offset += 20
-            limit += 20
+            offset += 12
+            limit += 12
             counter += 1
         self.page_indexes_reference = segments
 
@@ -190,10 +194,8 @@ class DataTableORM(ft.Column):
                 ft.DropdownOption(key="alice", text="Alice"),
                 ft.DropdownOption(key="bob", text="Bob"),
             ],
-            bgcolor=ft.Colors.GREY_900,
-            filled=True,
-            fill_color=ft.Colors.GREY_900,
-            label=ft.Text(value="Filtros", size=18)
+            label=ft.Text(value="Filtros", size=18),
+            text_size=12
         )
         widget = ft.Column(
             controls=[ft.Column(controls=[self.filter_dropdown])]
@@ -212,6 +214,7 @@ class DataTableORM(ft.Column):
                 spacing=15
             ),
             bgcolor=ft.Colors.BLACK_12,
+            border_radius=10,
             padding=15
         )
 
@@ -223,10 +226,14 @@ class DataTableORM(ft.Column):
         )
         self.datatable_container = ft.Container(
             expand=2,
-            content=ft.ListView(controls=[self.datatable], expand=True),
+            content=ft.ListView(
+                controls=[self.datatable],
+                expand=True,
+                horizontal=True
+                ),
             bgcolor=ft.Colors.BLACK_12,
             border_radius=10,
-            padding=5,
+            padding=5
         )
 
     def init_sideform(self):

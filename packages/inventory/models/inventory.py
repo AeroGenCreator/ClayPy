@@ -13,4 +13,5 @@ class Inventory(PanCakesORM):
         unique=True,
         required=True
     )
-    age = datatype.Int("Edad")
+    quantity = datatype.Int("Cantidad Producto")
+    price = datatype.Float("Precio Producto")
