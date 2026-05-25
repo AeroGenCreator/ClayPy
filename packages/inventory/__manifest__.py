@@ -1,5 +1,3 @@
-# Prometheus default __manifest__.py
-
 PACKAGE = {
     "name": "inventory",
     "menu":

@@ -30,7 +30,7 @@ class DataTableORM(ft.Column):
 
     def __init__(self, container, width=None, backend_controller=None):
         super().__init__()
-
+        # Atributos Instancia
         self.container = container
         self.column_spacing = 15 if width is None else width
         self.backend_controller = backend_controller
@@ -39,26 +39,25 @@ class DataTableORM(ft.Column):
         self.raw_data = {}
         self.display = []
         self.active_row = None
+        self.default_filter = None
+        # Metodos de Clase
         self.unpack()
         self.make_columns()
         self.page_indexes()
         self.segment_data()
         self.make_rows()
         self.page_counter_widget_method()
+        self.filter_selector_widget_method()
         self.new_entry_button_method()
-        self.init_page_counter()
-        self.init_new_entry()
+        self.init_headers()
         self.init_datatable()
         self.init_sideform()
         self.mount_widgets()
 
-    def transposition_data_filter(self, index):
+    def unpack_filters():
         pass
 
-    def transposition_data(self, index):
-        pass
-
-    def registration_form(self, e):
+    def unpack_views():
         pass
 
     def unpack(self):
@@ -96,11 +95,14 @@ class DataTableORM(ft.Column):
         """Numero Paginas: {indice: [indice, indice]}"""
         length = self.vector_length
         segments = {}
-        spliter = 20
-        chunks = (length // spliter) + 1
+        offset = 0
+        limit = 20
+        chunks = (length // limit) + 1
         counter = 0
         for i in range(chunks):
-            segments.update({counter: [counter, counter + spliter]})
+            segments.update({counter: [offset, limit]})
+            offset += 20
+            limit += 20
             counter += 1
         self.page_indexes_reference = segments
 
@@ -126,72 +128,90 @@ class DataTableORM(ft.Column):
         self.flet_rows = rows
 
     def page_counter_widget_method(self) -> None:
-        self.current_page = ft.Text(value=0,weight=ft.FontWeight.BOLD)
+        self.current_page = ft.Text(
+            value=0, weight=ft.FontWeight.BOLD, italic=False, size=30, expand=1
+        )
         widget = ft.Row(
             controls=[
                 ft.Column(
                     ft.FilledButton(
-                        content="Volver",
+                        width=100,
+                        content=ft.Text(
+                            value="Vol.", size=14
+                        ),
                         icon=ft.Icons.REMOVE,
                         expand=1,
                         style=ft.ButtonStyle(shape=ft.StadiumBorder()),
                         key="previous_page",
-                        on_click=self.sheet_manager
+                        on_click=self.sheet_manager,
                     )
                 ),
                 ft.Column(
                     controls=self.current_page,
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 ),
                 ft.Column(
                     ft.FilledButton(
-                        content="Avanzar",
+                        width=100,
+                        content=ft.Text(
+                            value="Sig.", size=14
+                        ),
                         icon=ft.Icons.ADD,
                         expand=1,
                         style=ft.ButtonStyle(shape=ft.StadiumBorder()),
                         key="next_page",
-                        on_click=self.sheet_manager
+                        on_click=self.sheet_manager,
                     )
-                )
+                ),
             ],
-            expand=1,
-            visible=True
+            expand=True,
+            visible=True,
         )
         self.page_counter_widget = widget
 
     def new_entry_button_method(self):
-        widget = ft.Column(
-            controls=[
-                ft.FilledButton(
-                    content="Nuevo Registro",
-                    icon=ft.Icons.CREATE,
-                    expand=True,
-                    style=ft.ButtonStyle(shape=ft.StadiumBorder())
-                )
+
+        widget = ft.FilledButton(
+            content=ft.Text(value="Nuevo", size=14),
+            key="new_entry",
+            icon=ft.Icons.CREATE,
+            expand=True,
+            style=ft.ButtonStyle(shape=ft.StadiumBorder()),
+            on_click=self.handle_new_entry_event
+        )
+
+        self.new_registry_event = widget
+
+    def filter_selector_widget_method(self):
+        self.filter_dropdown = ft.Dropdown(
+            width=150,
+            value="alice",
+            options=[
+                ft.DropdownOption(key="alice", text="Alice"),
+                ft.DropdownOption(key="bob", text="Bob"),
             ],
-            expand=1,
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER
+            bgcolor=ft.Colors.GREY_900,
+            filled=True,
+            fill_color=ft.Colors.GREY_900,
+            label=ft.Text(value="Filtros", size=18)
         )
-        self.new_entry_widget = widget
-
-    def init_page_counter(self) -> None:
-        self.page_counter_container = ft.Container(
-            expand=1,
-            content=self.page_counter_widget,
-            bgcolor=ft.Colors.BLACK_12,
-            border_radius=10,
-            padding=15
+        widget = ft.Column(
+            controls=[ft.Column(controls=[self.filter_dropdown])]
         )
+        self.filters_selector_widget = widget
 
-    def init_filters(self) -> None:
-        pass
-
-    def init_new_entry(self):
-        self.new_entry_container = ft.Container(
-            expand=1,
-            content=self.new_entry_widget,
+    def init_headers(self):
+        self.header_container = ft.Container(
+            content=ft.ListView(
+                controls=[
+                    self.page_counter_widget,
+                    self.new_registry_event,
+                    self.filters_selector_widget,
+                ],
+                horizontal=True,
+                spacing=15
+            ),
             bgcolor=ft.Colors.BLACK_12,
-            border_radius=10,
             padding=15
         )
 
@@ -216,30 +236,19 @@ class DataTableORM(ft.Column):
             bgcolor=ft.Colors.BLACK_12,
             border_radius=10,
             padding=5,
-            visible=False
+            visible=False,
         )
 
     def mount_widgets(self) -> None:
         headers_row = ft.Row(
-            controls=[
-                self.page_counter_container,
-                self.new_entry_container
-            ],
-            expand=1
+            controls=[self.header_container],
+            expand=1,
         )
         content_row = ft.Row(
-            controls=[
-                self.datatable_container,
-                self.sideform_container
-                ],
-            expand=10
+            controls=[self.datatable_container, self.sideform_container],
+            expand=9,
         )
-        self.controls.extend(
-            [
-            headers_row,
-            content_row
-            ]
-        )
+        self.controls.extend([headers_row, content_row])
 
     def selected_row_manager(self, e) -> None:
         # Control del evento de seleccion guardado
@@ -249,23 +258,25 @@ class DataTableORM(ft.Column):
         self.fill_form()
         self.selected_row(e)
 
-    def fill_form(self):
+    def fill_form(self, update=True):
         columns = list(self.raw_data.keys())
         fields = []
 
-        for idx, cell in enumerate(self.active_row.cells):
-            fields.append(
-                ft.TextField(
-                    label=columns[idx],
-                    value=cell.content.value
+        if update:
+            for idx, cell in enumerate(self.active_row.cells):
+                fields.append(
+                    ft.TextField(label=columns[idx], value=cell.content.value)
                 )
-            )
+        if not update:
+            for col in columns:
+                fields.append(ft.TextField(label=col))
+
         fields.append(ft.FilledButton(content="Guardar"))
         form = ft.ListView(controls=fields, expand=True, spacing=25)
         self.form = form
 
     def selected_row(self, e) -> None:
-        """ Toggle de checkbox de fila """
+        """Toggle de checkbox de fila"""
         e.control.selected = not e.control.selected
         self.sideform_container.visible = not self.sideform_container.visible
         self.sideform_container.content = self.form
@@ -275,11 +286,28 @@ class DataTableORM(ft.Column):
         index = int(self.current_page.value)
         if llave == "previous_page" and index > 0:
             self.current_page.value -= 1
-        if llave == "next_page" and index < list(self.page_indexes_reference.keys())[-1]:
+            self.sheet_count = int(self.current_page.value)
+            self.segment_data()
+            self.make_rows()
+            self.datatable.rows = self.flet_rows
+        if (
+            llave == "next_page"
+            and index < list(self.page_indexes_reference.keys())[-1]
+        ):
             self.current_page.value += 1
+            self.sheet_count = int(self.current_page.value)
+            self.segment_data()
+            self.make_rows()
+            self.datatable.rows = self.flet_rows
 
     def sheet_manager(self, e):
         llave = e.control.key
         if llave in ("previous_page", "next_page"):
             self.page_counter_on_change(llave)
         self.page.update()
+
+    def handle_new_entry_event(self, e):
+        self.fill_form(update=False)
+        self.sideform_container.visible = not self.sideform_container.visible
+        self.sideform_container.content = self.form
+        self.update()
