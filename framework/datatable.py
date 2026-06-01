@@ -1,4 +1,8 @@
 import flet as ft
+from pancakes.abstract.abstract_box import AbstractBox
+from pancakes.models.model import PanCakesORM
+
+box = AbstractBox(PanCakesORM)
 
 
 class DataTableORM(ft.Column):
@@ -28,16 +32,24 @@ class DataTableORM(ft.Column):
     Meth. ins: edition_form(): Formulario de edicion
     """
 
-    def __init__(self, container, width=None, controllers=None):
+    def __init__(
+        self,
+        model: PanCakesORM,
+        width: int = None,
+        controllers: list = None,
+    ):
         super().__init__()
         # Inyeccion:
-        self.container = container
+        self.model = model
         self.column_spacing = 15 if width is None else width
         self.controllers = controllers
         self.injection_filter = None
         self.injection_fields = None
         self.inyection_assets = None
 
+        self.container = None
+        self.create_button = None
+        self.update_button = None
         self.expand = True
         self.sheet_count = 0
         self.raw_data = {}
@@ -45,6 +57,8 @@ class DataTableORM(ft.Column):
         self.active_row = None
         self.default_filter = None
         # Metodos de Clase
+        self.unpack_and_sort_cotrollers()
+        self.fetch_data()
         self.unpack()
         self.make_columns()
         self.page_indexes()
@@ -58,11 +72,21 @@ class DataTableORM(ft.Column):
         self.init_sideform()
         self.mount_widgets()
 
-    def unpack_filters():
+    def unpack_and_sort_cotrollers(self):
+
+        if not self.controllers:
+            return
+
         pass
 
-    def unpack_views():
-        pass
+    def fetch_data(self):
+        links = getattr(self.model, "_depends", ["self"])
+        if links != ["self"]:
+            self.container = (
+                self.model.link(*links).all().container(label=True)
+            )
+        else:
+            self.container = self.model.all().container(label=True)
 
     def unpack(self):
         """Preparar datos desde container ORM para renderizar"""
@@ -140,9 +164,7 @@ class DataTableORM(ft.Column):
                 ft.Column(
                     ft.FilledButton(
                         width=100,
-                        content=ft.Text(
-                            value="Vol.", size=14
-                        ),
+                        content=ft.Text(value="Vol.", size=14),
                         icon=ft.Icons.REMOVE,
                         expand=1,
                         style=ft.ButtonStyle(shape=ft.StadiumBorder()),
@@ -157,9 +179,7 @@ class DataTableORM(ft.Column):
                 ft.Column(
                     ft.FilledButton(
                         width=100,
-                        content=ft.Text(
-                            value="Sig.", size=14
-                        ),
+                        content=ft.Text(value="Sig.", size=14),
                         icon=ft.Icons.ADD,
                         expand=1,
                         style=ft.ButtonStyle(shape=ft.StadiumBorder()),
@@ -181,7 +201,7 @@ class DataTableORM(ft.Column):
             icon=ft.Icons.CREATE,
             expand=True,
             style=ft.ButtonStyle(shape=ft.StadiumBorder()),
-            on_click=self.handle_new_entry_event
+            on_click=self.handle_new_entry_event,
         )
 
         self.new_registry_event = widget
@@ -195,7 +215,7 @@ class DataTableORM(ft.Column):
                 ft.DropdownOption(key="bob", text="Bob"),
             ],
             label=ft.Text(value="Filtros", size=18),
-            text_size=12
+            text_size=12,
         )
         widget = ft.Column(
             controls=[ft.Column(controls=[self.filter_dropdown])]
@@ -211,11 +231,11 @@ class DataTableORM(ft.Column):
                     self.filters_selector_widget,
                 ],
                 horizontal=True,
-                spacing=15
+                spacing=15,
             ),
             bgcolor=ft.Colors.BLACK_12,
             border_radius=10,
-            padding=15
+            padding=15,
         )
 
     def init_datatable(self) -> None:
@@ -227,13 +247,11 @@ class DataTableORM(ft.Column):
         self.datatable_container = ft.Container(
             expand=2,
             content=ft.ListView(
-                controls=[self.datatable],
-                expand=True,
-                horizontal=True
-                ),
+                controls=[self.datatable], expand=True, horizontal=True
+            ),
             bgcolor=ft.Colors.BLACK_12,
             border_radius=10,
-            padding=5
+            padding=5,
         )
 
     def init_sideform(self):
@@ -269,16 +287,62 @@ class DataTableORM(ft.Column):
         columns = list(self.raw_data.keys())
         fields = []
 
+        create_event = self.create_button
+        update_event = self.update_button
+
         if update:
             for idx, cell in enumerate(self.active_row.cells):
                 fields.append(
                     ft.TextField(label=columns[idx], value=cell.content.value)
                 )
+            fields.append(ft.FilledButton(content="Guardar"))
+
         if not update:
             for col in columns:
                 fields.append(ft.TextField(label=col))
 
-        fields.append(ft.FilledButton(content="Guardar"))
+            if create_event is None:
+
+                def create_line(e):
+                    data = {}
+                    for TAB in self.positions.keys():
+                        data.update({TAB: {}})
+
+                    for field in fields:
+                        if isinstance(field, ft.FilledButton):
+                            continue
+                        COL = field.label
+                        if not field.value:
+                            VAL = None
+                        else:
+                            VAL = field.value
+                        for TAB, POS in self.positions.items():
+                            if COL in POS:
+                                data[TAB].update({POS.get(COL): VAL})
+                    kwargs = {}
+                    for table, position in data.items():
+                        kwargs.setdefault(table, [])
+                        tupla = []
+                        for LOC, VAL in position.items():
+                            tupla.insert(LOC, VAL)
+                        kwargs[table].append(tuple(tupla))
+
+                    box.i(**kwargs)
+                    self.fetch_data()
+                    self.unpack()
+                    self.page_indexes()
+                    self.segment_data()
+                    self.make_rows()
+                    self.datatable.rows = self.flet_rows
+                    self.sideform_container.visible = False
+                    self.page.update()
+
+            fields.append(
+                ft.FilledButton(
+                    content="Guardar", on_click=lambda e: create_line(e)
+                )
+            )
+
         form = ft.ListView(controls=fields, expand=True, spacing=25)
         self.form = form
 
