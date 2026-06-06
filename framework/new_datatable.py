@@ -8,7 +8,7 @@ import flet as ft
 from pancakes.models.model import PanCakesORM
 
 
-class DatatableORM:
+class DatatableORM(ft.Column):
     """
     Atributos:
 
@@ -21,13 +21,17 @@ class DatatableORM:
     container; Query devuelto (Paquete de datos) vector = max_rows.
     table; Nombre de la tabla del modelo pasado.
     columns; Lista de tablas [strings, ... ].
-    flet_columns; Columnas de este modelo (Inicializadas como objetos Flet).
+    flet_columns; Columnas del query (listadas como objetos Flet).
+    rows; Filas transpuestas crudas.
+    flet_rows; Filas del query (listadas como objetos Flet).
+    length; Largo del vector devuelto por el query actual.
 
     """
 
     def __init__(
         self, model: PanCakesORM, controllers: List = None, filters: List = None
     ):
+        super().__init__()
         self.model = model
         self.controllers = controllers
         self.filters = filters
@@ -38,12 +42,19 @@ class DatatableORM:
         self.table = None
         self.columns = []
         self.flet_columns = []
+        self.rows = []
+        self.flet_rows = []
+        self.length = 0
 
         # Metodos
         self._calculate_chunk_()
         self._fetch_data_()
         self._construct_flet_columns_()
-        self._calculate_page_counter_posibilities_()
+        self._construct_flet_rows_()
+        self._vector_length_()
+        self._page_counter_widget_()
+        self._table_widget_()
+        self._layout_()
 
     def _calculate_chunk_(self) -> None:
         """Tranforma indices 0,1,2 en rangos 20,40,60 etc..."""
@@ -52,7 +63,7 @@ class DatatableORM:
             offset = limit - self.max_rows
             self.chunk = {"offset": offset, "limit": limit}
         else:
-            self.chunk = {"offset": 0, limit: self.max_rows}
+            self.chunk = {"offset": 0, "limit": self.max_rows}
 
     def _fetch_data_(self) -> None:
         """Carga toda la tabla en memoria"""
@@ -71,9 +82,84 @@ class DatatableORM:
             ft.DataColumn(label=ft.Text(str(COL))) for COL in self.columns
         ]
 
-    def _calculate_page_counter_posibilities_(self):
+    def _construct_flet_rows_(self) -> None:
+        """Extraer y construir las filas del query devuelto actual"""
+        raw = []  # Extraccion
+        for field, metadata in self.container[self.table].items():
+            validate = ((field != "@main_table@"), (field != "@depends@"))
+            if all(validate):
+                raw.append(metadata["vector"])
+
+        # Filas crudas transpuestas
+        self.rows = list(zip(*raw))
+
+        # Filas FLet
+        self.flet_rows = [
+            ft.DataRow(
+                on_select_change=None,  # Seleccion de fila
+                selected=False,
+                cells=[ft.DataCell(ft.Text(cell)) for cell in row],
+            )
+            for row in self.rows
+        ]
+
+    def _vector_length_(self) -> None:
+        """Largo del query (vector)"""
+        self.length = len(self.rows) if self.rows else 0
+
+    def _page_counter_widget_(self) -> None:
+        self.page_counter_container = ft.Container(
+            content=ft.Row(
+                controls=[
+                    ft.Button(
+                        content="-",
+                        on_click=self._counter_manager_
+                    ),
+                    ft.Text(self.current_page),
+                    ft.Button(
+                        content="+",
+                        on_click=self._counter_manager_
+                    )
+                ]
+            )
+        )
+
+    def _table_widget_(self):
+        datatable = ft.DataTable(
+            columns=self.flet_columns,
+            rows=self.flet_rows,
+            show_checkbox_column=True,
+        )
+        self.datatable_container = ft.Container(
+            content=ft.ListView(
+                controls=[datatable],
+                expand=True,
+                horizontal=True
+            ),
+            bgcolor=ft.Colors.BLACK_12,
+            border_radius=10,
+            padding=5,
+        )
+
+    def _counter_manager_(self, e) -> None:
         """
         Query menor a max_rows, no renderiza mas cambios de pagina
         en el contador. Ademas que no puede renderizarse un contador menor a 1
         """
         pass
+
+    def _validate_navigation_(self) -> None:
+        if self.length > 0:
+            self.current_page += 1
+
+    def _layout_(self) -> None:
+        headers_row = ft.Row(
+            controls=[self.page_counter_container],
+            expand=1,
+        )
+        content_row = ft.Row(
+            controls=[self.datatable_container],
+            expand=11,
+        )
+        self.expand = True
+        self.controls.extend([headers_row, content_row])

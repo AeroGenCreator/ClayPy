@@ -1,12 +1,12 @@
 import flet as ft
 
-from framework.datatable import DataTableORM
+from framework.new_datatable import DatatableORM
 
 from .. import models
 
 
 def get_inventory():
     model = models.inventory.Inventory
-    return DataTableORM(
+    return DatatableORM(
         model=model
         )
