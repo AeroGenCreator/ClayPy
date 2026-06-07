@@ -115,6 +115,7 @@ class DatatableORM(ft.Column):
         self.length = len(self.rows) if self.rows else 0
 
     def _page_counter_widget_(self) -> None:
+        """Contiene el contador de paagina"""
         self.page_counter_container = ft.Container(
             content=ft.Row(
                 controls=[
@@ -171,6 +172,10 @@ class DatatableORM(ft.Column):
         Query menor a max_rows, no renderiza mas cambios de pagina
         en el contador. Ademas que no puede renderizarse un contador menor a 1
         """
+        if e.control.content == "-":
+            print("Menos")
+        if e.control.content == "+":
+            print("Mas")
         pass
 
     def _validate_navigation_(self) -> None:
@@ -267,12 +272,12 @@ class DatatableORM(ft.Column):
                 )
                 controls.append(ft.Row(controls=[component]))
 
-            elif field_type == "BOOL":
+            elif field_type == "BOOLEAN":
                 VAL = field_default if field_default is not None else True
                 component = ft.Switch(
                     label=field_name,
                     key=position,
-                    read_only=field_read_only,
+                    disabled=field_read_only,
                     value=VAL
                 )
                 controls.append(ft.Row(controls=[component]))
@@ -288,10 +293,15 @@ class DatatableORM(ft.Column):
                     )
 
                 else:
-                    component = ft.DatePicker(
-                        label=field_name,
-                        key=position,
+                    picker = ft.DatePicker(
                         value=field_default
+                    )
+                    component = ft.Button(
+                        content=field_name,
+                        key=position,
+                        disabled=field_read_only,
+                        on_click=lambda e: self.page.show_dialog(picker),
+                        icon=ft.Icons.CALENDAR_MONTH
                     )
 
                 controls.append(ft.Row(controls=[component]))
@@ -315,28 +325,32 @@ class DatatableORM(ft.Column):
                     )
 
                 else:
+                    date_picker = ft.DatePicker(value=DATE)
+                    time_picker = ft.TimePicker(value=TIME)
                     component = ft.Row(
                         controls=[
                             ft.Column(
                                 controls=[
-                                    ft.DatePicker(
-                                        label=field_name,
-                                        key=position,
-                                        read_only=field_read_only,
-                                        value=DATE,
-                                        width=200
+                                    ft.Button(
+                                        content=f"DIA {field_name}",
+                                        key=f"dia__{position}",
+                                        disabled=field_read_only,
+                                        on_click=lambda e:
+                                            self.page.show_dialog(date_picker),
+                                        icon=ft.Icons.CALENDAR_MONTH
                                     )
                                 ],
                                 expand=True
                             ),
                             ft.Column(
                                 controls=[
-                                    ft.TimePicker(
-                                        label=field_name,
-                                        key=position,
-                                        read_only=field_read_only,
-                                        value=TIME,
-                                        width=200
+                                    ft.Button(
+                                        content=f"HORA {field_name}",
+                                        key=f"hora__{position}",
+                                        disabled=field_read_only,
+                                        on_click=lambda e:
+                                        self.page.show_dialog(time_picker),
+                                        icon=ft.Icons.TIMER
                                     )
                                 ],
                                 expand=True
