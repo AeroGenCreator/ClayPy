@@ -25,6 +25,9 @@ class DatatableORM(ft.Column):
     rows; Filas transpuestas crudas.
     flet_rows; Filas del query (listadas como objetos Flet).
     length; Largo del vector devuelto por el query actual.
+    counter;
+    form_controls;
+    alert;
 
     """
 
@@ -48,6 +51,7 @@ class DatatableORM(ft.Column):
         self.counter = 1
         # Almacena los campos widgets de vista formulario 'invocada'
         self.form_controls = []
+        self.alert = ft.AlertDialog()
 
         # Metodos
         self._calculate_chunk_()
@@ -236,15 +240,23 @@ class DatatableORM(ft.Column):
             self.sidebar_container.content = self.form_widget
         self.update()
 
-    def current_row(self):
+    def current_row(self) -> None:
         pass
 
-    def save_changes(self, e):
+    def save_changes(self, e) -> None:
+        # Iterar controladores del formulario
+        self.required_alert()
         pass
+
+    def required_alert(self) -> None:
+        self.alert.title = "Restriccion"
+        self.alert.content = ft.Text(value="Campor Requerido")
+        self.alert.open = True
+        self.page.show_dialog(self.alert)
 
     # === FORMULARIO ===
 
-    def form(self):
+    def form(self) -> None:
         """Creacion de formulario 'Nuevo' o 'Registro'"""
 
         # Constantes
@@ -476,7 +488,7 @@ class DatatableORM(ft.Column):
                 content="Guardar Cambios",
                 key="save",
                 icon=ft.Icons.SAVE,
-                on_click=lambda e: self.save_changes
+                on_click=self.save_changes
             )
         )
 
