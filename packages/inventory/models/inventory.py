@@ -6,8 +6,8 @@ class Inventory(PanCakesORM):
     _table = "inventory"
     _depends = ["categories"]
 
-    name = datatype.Char(comment="Nombre Producto", unique=True, required=True)
-    qty = datatype.Int(comment="Cantidad Stock")
+    name = datatype.Char(comment="Nombre Producto", readonly=False)
+    qty = datatype.Int(comment="Cantidad Stock", default=10)
     price = datatype.Float(comment="Precio Producto")
     saleable = datatype.Bool(comment="Es Vendible")
     extras = datatype.Text(comment="Notas Extras")

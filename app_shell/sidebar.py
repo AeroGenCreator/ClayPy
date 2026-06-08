@@ -100,7 +100,7 @@ class Sidebar(ft.Column):
 
         # Agregar Estaticos en Sidebar
         self.BUTTON.insert(0, self.logout)
-        self.BUTTON.append(ft.Text("ALAI INC.", weight=ft.FontWeight.W_400))
+        self.BUTTON.append(ft.Text("BETA 1.0", weight=ft.FontWeight.W_400))
         self.controls = self.BUTTON
 
     def go_to(self, _, route, view) -> None:

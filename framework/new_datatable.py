@@ -45,6 +45,9 @@ class DatatableORM(ft.Column):
         self.rows = []
         self.flet_rows = []
         self.length = 0
+        self.counter = 1
+        # Almacena los campos widgets de vista formulario 'invocada'
+        self.form_controls = []
 
         # Metodos
         self._calculate_chunk_()
@@ -55,6 +58,7 @@ class DatatableORM(ft.Column):
         self._page_counter_widget_()
         self._create_entry_widget_()
         self._table_widget_()
+        self._table_container_()
         self._sidebar_()
         self._layout_()
 
@@ -103,7 +107,7 @@ class DatatableORM(ft.Column):
         # Filas FLet
         self.flet_rows = [
             ft.DataRow(
-                on_select_change=None,  # Seleccion de fila
+                on_select_change=lambda e: self.current_row,  # Seleccion fila.
                 selected=False,
                 cells=[ft.DataCell(ft.Text(cell)) for cell in row],
             )
@@ -111,22 +115,27 @@ class DatatableORM(ft.Column):
         ]
 
     def _vector_length_(self) -> None:
-        """Largo del query (vector)"""
+        """Largo del query actual (vector)"""
         self.length = len(self.rows) if self.rows else 0
 
     def _page_counter_widget_(self) -> None:
         """Contiene el contador de paagina"""
+
+        # Contador Numerico
+        self.counter = ft.Text(value=self.current_page)
+        # Conjunto de componentes (boton, numero, boton)
         self.page_counter_container = ft.Container(
             content=ft.Row(
                 controls=[
                     ft.Button(content="-", on_click=self._counter_manager_),
-                    ft.Text(self.current_page),
+                    self.counter,
                     ft.Button(content="+", on_click=self._counter_manager_),
                 ]
             )
         )
 
     def _create_entry_widget_(self) -> None:
+        """Boton de nuevo registro, genera instancia de formulario vacio"""
         self.create_entry_container = ft.Container(
             content=ft.Row(
                 controls=[
@@ -140,15 +149,19 @@ class DatatableORM(ft.Column):
         )
 
     def _table_widget_(self):
-        datatable = ft.DataTable(
+        """Instancia 'Datatable, permite alterar filas.'"""
+        self.datatable = ft.DataTable(
             columns=self.flet_columns,
             rows=self.flet_rows,
             show_checkbox_column=True,
         )
+
+    def _table_container_(self):
+        """Se monta el componente 'Datatable' en un contenedor"""
         self.datatable_container = ft.Container(
             content=ft.ListView(
-                controls=[datatable], expand=True, horizontal=True
-            ),
+                controls=[self.datatable], expand=True, horizontal=True
+            ),  # Permite 'scroll' horizontal
             bgcolor=ft.Colors.BLACK_12,
             border_radius=10,
             padding=5,
@@ -157,90 +170,159 @@ class DatatableORM(ft.Column):
 
     # Contenedor Side Bar
     def _sidebar_(self):
+        """Contendor dinamico, vista formulario se monta en este contenedor"""
         self.sidebar_container = ft.Container(
             content=None,
             bgcolor=ft.Colors.BLACK_12,
             border_radius=10,
             padding=5,
             expand=True,
-            visible=False,
+            visible=False,  # Este campo controla si se muestra o no.
         )
 
     # === FUNCIONES Y LOGICA ===
+
     def _counter_manager_(self, e) -> None:
         """
-        Query menor a max_rows, no renderiza mas cambios de pagina
-        en el contador. Ademas que no puede renderizarse un contador menor a 1
+        Evalua el tipo de evento (avanzar, retroceder)
+        Crea copias de 'current_page' & 'container'
+        Se altera el contador, se realizar el query.
+        Si la cuenta y el query son validos; los muestra
+        De lo contrario regresa al estado original usando los respaldos.
         """
         if e.control.content == "-":
-            print("Menos")
+            if self.current_page > 1:
+                self.current_page -= 1
+                self._calculate_chunk_()
+                self._fetch_data_()
+                self._construct_flet_rows_()
+                self.datatable.rows = self.flet_rows
+                self.counter.value = self.current_page
+                self.update()
         if e.control.content == "+":
-            print("Mas")
-        pass
-
-    def _validate_navigation_(self) -> None:
-        if self.length > 0:
+            self.current_page_cache = self.current_page
+            self.container_cache = self.container
             self.current_page += 1
+            self._calculate_chunk_()
+            self._fetch_data_()
+            self._construct_flet_rows_()
+            self._vector_length_()
+            if self.length > 1:
+                self.datatable.rows = self.flet_rows
+                self.counter.value = self.current_page
+                self.update()
+            else:
+                self.current_page = self.current_page_cache
+                self.container = self.container_cache
+                self._construct_flet_rows_()
+                self.datatable.rows = self.flet_rows
+                self.counter.value = self.current_page
+                self.update()
 
     def create_entry(self, e):
-        self.sidebar_container.visible = not self.sidebar_container.visible
-        self.form()
-        self.sidebar_container.content = self.form_widget
+        """
+        Si se presiona:
+        'Nuevo' -> Genera Formulario Limpio del Modelo -> Abre Vista
+        Si se presiona Segunda Vez:
+        -> Se borra el formulario -> Cierra Vista
+        """
+        status = self.sidebar_container.visible
+        if status:
+            self.sidebar_container.visible = not self.sidebar_container.visible
+            self.sidebar_container.content = None
+        else:
+            self.sidebar_container.visible = not self.sidebar_container.visible
+            self.form()
+            self.sidebar_container.content = self.form_widget
         self.update()
 
-    # === FORMULARIO ===
-    def form(self):
+    def current_row(self):
+        pass
 
+    def save_changes(self, e):
+        pass
+
+    # === FORMULARIO ===
+
+    def form(self):
+        """Creacion de formulario 'Nuevo' o 'Registro'"""
+
+        # Constantes
         MODEL = self.model
         TABLE = self.table
-        controls = []
+        TITLE = ft.Container(
+            content=ft.Text(
+                value="Vista Formulario",
+                weight=ft.FontWeight.W_900
+            )
+        )
 
+        # Titulo 'Vista Formulario'
+        controls = [TITLE]
+
+        # Limpia widget formularios antiguos
+        self.form_controls = []
+
+        # Iteracion de 'nombre columnas' crudas
         for COL in self.columns:
 
-            field_name = self.container[TABLE][COL].get("label", "")
-            field_pk = self.container[TABLE][COL].get("primary_key", False)
+            # Extraccion de metadata y restricciones
             field_type = self.container[TABLE][COL].get("sql_type", "").upper()
-            field_position = self.container[TABLE][COL].get("position", "")
             field_read_only = self.container[TABLE][COL].get("readonly", False)
             field_required = self.container[TABLE][COL].get("required", False)
             sec_table = self.container[TABLE][COL].get("second_table", False)
+            field_pk = self.container[TABLE][COL].get("primary_key", False)
+            field_position = self.container[TABLE][COL].get("position", "")
+            field_name = self.container[TABLE][COL].get("label", "")
+
+            # Si existe N:1 -> Definimos un nombre de columna para el query
             if sec_table:
                 name = (
                     f"{sec_table}__{MODEL._metadata[sec_table]["columns"][1]}"
                 )
             else:
                 name = None
+
+            # Required puede ser usado para validar. Aunque pydantic ya lo hace.
             required = "TRUE" if field_required else "FALSE"
+
+
             field_default = self.container[TABLE][COL].get("default", None)
+
+            # Extraccion de restricciones unicas de campo
             constraints = MODEL._metadata[TABLE]["schema"][COL]["constraints"]
             max_length = constraints.get("max_length", None)
             ge = constraints.get("ge", False)
             gt = constraints.get("gt", False)
             le = constraints.get("le", False)
             lt = constraints.get("lt", False)
-            position = f"{TABLE}__{str(field_position)}__{required}"
 
+            # Position es una llave unica que almacena metadata 'procesamiento'.
+            position = f"field__{TABLE}__{str(field_position)}__{required}"
+
+            # Si el campo es un PrimaryKey NO renderizamos en formulario.
             if field_pk:
                 continue
 
+            # Se renderizan todos los widgets (segun el campo pasado)
             if field_type == "TEXT":
                 component = ft.TextField(
                     label=field_name,
                     key=position,
-                    read_only=field_read_only,
+                    disabled=field_read_only,
                     value=field_default
                 )
-                controls.append(ft.Row(controls=[component]))
+                self.form_controls.append(ft.Row(controls=[component]))
 
             elif field_type == "VARCHAR":
                 component = ft.TextField(
                     label=field_name,
                     key=position,
-                    read_only=field_read_only,
+                    disabled=field_read_only,
                     max_length=max_length,
                     value=field_default
                 )
-                controls.append(ft.Row(controls=[component]))
+                self.form_controls.append(ft.Row(controls=[component]))
 
             elif field_type == "INTEGER":
                 component = ft.TextField(
@@ -252,10 +334,10 @@ class DatatableORM(ft.Column):
                     ),
                     keyboard_type=ft.KeyboardType.NUMBER,
                     key=position,
-                    read_only=field_read_only,
+                    disabled=field_read_only,
                     value=field_default
                 )
-                controls.append(ft.Row(controls=[component]))
+                self.form_controls.append(ft.Row(controls=[component]))
 
             elif field_type == "FLOAT":
                 component = ft.TextField(
@@ -267,10 +349,10 @@ class DatatableORM(ft.Column):
                     ),
                     keyboard_type=ft.KeyboardType.NUMBER,
                     key=position,
-                    read_only=field_read_only,
+                    disabled=field_read_only,
                     value=field_default
                 )
-                controls.append(ft.Row(controls=[component]))
+                self.form_controls.append(ft.Row(controls=[component]))
 
             elif field_type == "BOOLEAN":
                 VAL = field_default if field_default is not None else True
@@ -280,7 +362,7 @@ class DatatableORM(ft.Column):
                     disabled=field_read_only,
                     value=VAL
                 )
-                controls.append(ft.Row(controls=[component]))
+                self.form_controls.append(ft.Row(controls=[component]))
 
             elif field_type == "DATE":
 
@@ -304,7 +386,7 @@ class DatatableORM(ft.Column):
                         icon=ft.Icons.CALENDAR_MONTH
                     )
 
-                controls.append(ft.Row(controls=[component]))
+                self.form_controls.append(ft.Row(controls=[component]))
 
             elif field_type == "TIMESTAMP":
 
@@ -320,7 +402,7 @@ class DatatableORM(ft.Column):
                     component = ft.TextField(
                         label=field_name,
                         key=position,
-                        read_only=field_read_only,
+                        disabled=field_read_only,
                         value=field_default
                     )
 
@@ -359,7 +441,7 @@ class DatatableORM(ft.Column):
                         expand=True
                     )
 
-                controls.append(ft.Row(controls=[component]))
+                self.form_controls.append(ft.Row(controls=[component]))
 
             elif field_type == "FOREIGN KEY":
                 sub_model = MODEL._family[sec_table]
@@ -380,19 +462,25 @@ class DatatableORM(ft.Column):
                     ]
                 )
 
-                controls.append(ft.Row(controls=[component]))
+                self.form_controls.append(ft.Row(controls=[component]))
 
             else:
                 raise TypeError(f"Unknown passed datatype {field_type}.")
 
+        # Controles formulario de campo, fusion con controles estaticos.
+        controls.extend(self.form_controls)
+
+        # Boton de guardar
         controls.append(
             ft.Button(
                 content="Guardar Cambios",
                 key="save",
-                icon=ft.Icons.SAVE
+                icon=ft.Icons.SAVE,
+                on_click=lambda e: self.save_changes
             )
         )
 
+        # Se declara una vista de scroll vertical para los formularios.
         self.form_widget = ft.ListView(
                 controls=[
                     ft.Column(
