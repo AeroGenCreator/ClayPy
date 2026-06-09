@@ -1,5 +1,6 @@
 # Modulos Python
 from typing import List
+import uuid
 
 # Modulos Terceros
 import flet as ft
@@ -52,6 +53,8 @@ class DatatableORM(ft.Column):
         # Almacena los campos widgets de vista formulario 'invocada'
         self.form_controls = []
         self.alert = ft.AlertDialog()
+        self.date_picker = ft.DatePicker()
+        self.time_picker = ft.TimePicker()
 
         # Metodos
         self._calculate_chunk_()
@@ -244,16 +247,67 @@ class DatatableORM(ft.Column):
         pass
 
     def save_changes(self, e) -> None:
-        # Iterar controladores del formulario
-        self.required_alert()
-        pass
 
-    def required_alert(self) -> None:
+        data = []
+
+        # Iterar controladores del formulario
+        for field in self.form_controls:
+            if isinstance(
+                field,
+                (ft.TextField, ft.Switch)
+            ):
+                name = field.label
+            else:
+                name = field.content
+            # key almacena metada [datetime][tabla, posicion & validacion]:
+            PARTS = field.key.split("__")
+
+            # En caso de ser un widget dividido (TIMESTAMP)
+            nature = None
+            if len(PARTS) == 6:
+                nature = PARTS[0]
+                table = PARTS[1]
+                column = PARTS[2]
+                position = int(PARTS[3])
+                required = PARTS[4]
+                code = PARTS[5]
+            # Resto de situaciones
+            else:
+                table = PARTS[0]
+                column = PARTS[1]
+                position = int(PARTS[2])
+                required = PARTS[3]
+                code = PARTS[4]
+
+            if not isinstance(field, ft.Button):
+                value = field.value
+            else:
+                value = field.content
+            if required == "TRUE" and not value:
+                self.required_alert(campos=name)
+                return
+
+            data.insert(position, value)
+        kwargs = {self.model._table: [tuple(data)]}
+        self.model.i(**kwargs)
+
+    def required_alert(self, campos: list | str = "Aun No Hay Campos") -> None:
+        """
+        Esta funcion construye la alerta de campo requerido en tiempo real.
+        """
         self.alert.title = "Restriccion"
-        self.alert.content = ft.Text(value="Campor Requerido")
+        self.alert.content = ft.Text(
+            value=f"Los siguientes campos son requeridos: {campos}"
+        )
+        self.alert.actions=[
+            ft.TextButton(
+                "Cerrar",
+                on_click=lambda e: self.page.pop_dialog()
+                )
+            ]
         self.alert.open = True
         self.page.show_dialog(self.alert)
-
+    
     # === FORMULARIO ===
 
     def form(self) -> None:
@@ -310,7 +364,13 @@ class DatatableORM(ft.Column):
             lt = constraints.get("lt", False)
 
             # Position es una llave unica que almacena metadata 'procesamiento'.
-            position = f"field__{TABLE}__{str(field_position)}__{required}"
+            position = (
+                f"{TABLE}__"  # Nombre de Tabla
+                f"{COL}__"  # Columna "crudo"
+                f"{str(field_position)}__"  # Posicion en la tabla
+                f"{required}__"  # Si es campo requerido
+                f"{str(uuid.uuid4())}"  # Codigo unico
+            )
 
             # Si el campo es un PrimaryKey NO renderizamos en formulario.
             if field_pk:
@@ -324,7 +384,7 @@ class DatatableORM(ft.Column):
                     disabled=field_read_only,
                     value=field_default
                 )
-                self.form_controls.append(ft.Row(controls=[component]))
+                self.form_controls.append(component)
 
             elif field_type == "VARCHAR":
                 component = ft.TextField(
@@ -334,7 +394,7 @@ class DatatableORM(ft.Column):
                     max_length=max_length,
                     value=field_default
                 )
-                self.form_controls.append(ft.Row(controls=[component]))
+                self.form_controls.append(component)
 
             elif field_type == "INTEGER":
                 component = ft.TextField(
@@ -349,7 +409,7 @@ class DatatableORM(ft.Column):
                     disabled=field_read_only,
                     value=field_default
                 )
-                self.form_controls.append(ft.Row(controls=[component]))
+                self.form_controls.append(component)
 
             elif field_type == "FLOAT":
                 component = ft.TextField(
@@ -364,7 +424,7 @@ class DatatableORM(ft.Column):
                     disabled=field_read_only,
                     value=field_default
                 )
-                self.form_controls.append(ft.Row(controls=[component]))
+                self.form_controls.append(component)
 
             elif field_type == "BOOLEAN":
                 VAL = field_default if field_default is not None else True
@@ -374,7 +434,7 @@ class DatatableORM(ft.Column):
                     disabled=field_read_only,
                     value=VAL
                 )
-                self.form_controls.append(ft.Row(controls=[component]))
+                self.form_controls.append(component)
 
             elif field_type == "DATE":
 
@@ -398,7 +458,7 @@ class DatatableORM(ft.Column):
                         icon=ft.Icons.CALENDAR_MONTH
                     )
 
-                self.form_controls.append(ft.Row(controls=[component]))
+                self.form_controls.append(component)
 
             elif field_type == "TIMESTAMP":
 
@@ -417,43 +477,30 @@ class DatatableORM(ft.Column):
                         disabled=field_read_only,
                         value=field_default
                     )
+                    self.form_controls.append(component)
 
                 else:
-                    date_picker = ft.DatePicker(value=DATE)
-                    time_picker = ft.TimePicker(value=TIME)
-                    component = ft.Row(
-                        controls=[
-                            ft.Column(
-                                controls=[
-                                    ft.Button(
-                                        content=f"DIA {field_name}",
-                                        key=f"dia__{position}",
-                                        disabled=field_read_only,
-                                        on_click=lambda e:
-                                            self.page.show_dialog(date_picker),
-                                        icon=ft.Icons.CALENDAR_MONTH
-                                    )
-                                ],
-                                expand=True
-                            ),
-                            ft.Column(
-                                controls=[
-                                    ft.Button(
-                                        content=f"HORA {field_name}",
-                                        key=f"hora__{position}",
-                                        disabled=field_read_only,
-                                        on_click=lambda e:
-                                        self.page.show_dialog(time_picker),
-                                        icon=ft.Icons.TIMER
-                                    )
-                                ],
-                                expand=True
-                            )
-                        ],
-                        expand=True
+                    self.date_picker.value = DATE
+                    self.time_picker.value = TIME
+                    date_component = ft.Button(
+                        content=self.date_picker.value,
+                        key=f"dia__{position}",
+                        disabled=field_read_only,
+                        on_click=lambda e:
+                            self.page.show_dialog(date_picker),
+                        icon=ft.Icons.CALENDAR_MONTH
+                    )
+                    time_component = ft.Button(
+                        content=self.time_picker.value,
+                        key=f"hora__{position}",
+                        disabled=field_read_only,
+                        on_click=lambda e:
+                            self.page.show_dialog(time_picker),
+                            icon=ft.Icons.TIMER
                     )
 
-                self.form_controls.append(ft.Row(controls=[component]))
+                    self.form_controls.append(date_component)    
+                    self.form_controls.append(time_component)
 
             elif field_type == "FOREIGN KEY":
                 sub_model = MODEL._family[sec_table]
@@ -474,7 +521,7 @@ class DatatableORM(ft.Column):
                     ]
                 )
 
-                self.form_controls.append(ft.Row(controls=[component]))
+                self.form_controls.append(component)
 
             else:
                 raise TypeError(f"Unknown passed datatype {field_type}.")
@@ -497,7 +544,8 @@ class DatatableORM(ft.Column):
                 controls=[
                     ft.Column(
                         controls=controls,
-                        spacing=20
+                        spacing=20,
+                        expand=True
                     )
                 ],
             expand=True,
