@@ -256,6 +256,9 @@ class DatatableORM(ft.Column):
 
     def save_changes(self, e) -> None:
 
+        # Status Barra lateral
+        status = self.sidebar_container.visible
+
         # INSERT MODELO ACTUAL
         MODEL = self.model
         TABLE = self.table
@@ -315,7 +318,7 @@ class DatatableORM(ft.Column):
                 ]["foreign_key"]["second_table"]
                 NAME = MODEL._metadata[REFERENCES]["columns"][1]
                 NEW_MODEL = MODEL._family[REFERENCES]
-                if TYPE == "FOREIGN KEY":
+                if TYPE == "FOREIGN KEY" and value is not None:
                     domain = {f"{REFERENCES}__{NAME}__same": value}
                     row, col = (
                         NEW_MODEL
@@ -326,7 +329,6 @@ class DatatableORM(ft.Column):
 
                     if row:
                         value = row[0][0]
-
             else:
                 self.uncharted_field()
                 return
@@ -354,8 +356,15 @@ class DatatableORM(ft.Column):
         for k, value in sorted_dict.items():
             data.append(value)
 
-        # INSERT MODELO ACTUAL
+        # kwargs - modelo actual
         kwargs = {TABLE: [tuple(data)]}
+
+        # Cerrar sidebar - Limpiar contenido
+        if status:
+            self.sidebar_container.visible = not self.sidebar_container.visible
+            self.sidebar_container.content = None
+
+        # Insertar datos modelo actual
         self.model.i(**kwargs)
         self._calculate_chunk_()
         self._fetch_data_()
@@ -545,12 +554,6 @@ class DatatableORM(ft.Column):
                 self.form_controls.append(component)
 
             elif field_type == "TIMESTAMP":
-                if field_default is not None:
-                    DATE = field_default.split("T")[0]
-                    TIME = field_default.split("T")[1]
-                else:
-                    DATE = None
-                    TIME = None
 
                 if field_read_only:
                     component = ft.TextField(
@@ -562,8 +565,8 @@ class DatatableORM(ft.Column):
                     self.form_controls.append(component)
 
                 else:
-                    date_picker = ft.DatePicker(value=DATE)
-                    time_picker = ft.TimePicker(value=TIME)
+                    date_picker = ft.DatePicker(value=None)
+                    time_picker = ft.TimePicker(value=None)
                     date_component = ft.Button(
                         content=f"Selector Fecha - {field_name}",
                         key=f"DATE__{position}",
@@ -591,7 +594,7 @@ class DatatableORM(ft.Column):
                 if ROW:
                     OPTIONS = list(ROW[0])
                 else:
-                    OPTIONS = ["vacio"]
+                    OPTIONS = []
 
                 component = ft.Dropdown(
                     label=field_name,
