@@ -1,12 +1,19 @@
 # Modulos Python
-from typing import List
+import datetime
 import uuid
+from typing import List
 
 # Modulos Terceros
 import flet as ft
 
 # Propios
 from pancakes.models.model import PanCakesORM
+
+# datetime.now().astimezone() detecta automáticamente el offset del sistema
+fecha_local = datetime.datetime.now().astimezone()
+
+# Extraemos la información de la zona horaria (el offset)
+tz_sistema = fecha_local.tzinfo
 
 
 class DatatableORM(ft.Column):
@@ -53,8 +60,9 @@ class DatatableORM(ft.Column):
         # Almacena los campos widgets de vista formulario 'invocada'
         self.form_controls = []
         self.alert = ft.AlertDialog()
-        self.date_picker = ft.DatePicker()
-        self.time_picker = ft.TimePicker()
+        self.close_alert = ft.TextButton(
+            "Cerrar", on_click=lambda e: self.page.pop_dialog()
+        )
 
         # Metodos
         self._calculate_chunk_()
@@ -149,7 +157,7 @@ class DatatableORM(ft.Column):
                     ft.Button(
                         content="Nuevo",
                         on_click=lambda e: self.create_entry(e),
-                        icon=ft.Icons.ADD
+                        icon=ft.Icons.ADD,
                     )
                 ]
             )
@@ -248,66 +256,147 @@ class DatatableORM(ft.Column):
 
     def save_changes(self, e) -> None:
 
-        data = []
-
-        # Iterar controladores del formulario
+        # INSERT MODELO ACTUAL
+        MODEL = self.model
+        TABLE = self.table
+        data = {}
+        timestamp = {}
         for field in self.form_controls:
-            if isinstance(
-                field,
-                (ft.TextField, ft.Switch)
-            ):
-                name = field.label
-            else:
-                name = field.content
-            # key almacena metada [datetime][tabla, posicion & validacion]:
+            # key -> metada [datetime][tabla, col, posicion & validacion]:
             PARTS = field.key.split("__")
 
             # En caso de ser un widget dividido (TIMESTAMP)
-            nature = None
             if len(PARTS) == 6:
-                nature = PARTS[0]
-                table = PARTS[1]
+                widget = PARTS[0]
                 column = PARTS[2]
                 position = int(PARTS[3])
                 required = PARTS[4]
-                code = PARTS[5]
-            # Resto de situaciones
+                value = field.data.value
+                if required == "TRUE" and value is None:
+                    self.required_alert(column)
+                    return
+
+                if TABLE not in timestamp:
+                    timestamp[TABLE] = {}
+
+                if column not in timestamp[TABLE]:
+                    timestamp[TABLE][column] = {"position": position}
+
+                if widget == "DATE":
+                    timestamp[TABLE][column]["date"] = value
+                elif widget == "TIME":
+                    timestamp[TABLE][column]["time"] = value
+                else:
+                    self.timestamp_error(widget)
+                    return
+
+            # Resto de widgets
             else:
-                table = PARTS[0]
                 column = PARTS[1]
                 position = int(PARTS[2])
                 required = PARTS[3]
-                code = PARTS[4]
 
-            if not isinstance(field, ft.Button):
+            # Extraccion de valor segun tipo de objeto
+            if isinstance(field, ft.TextField):
                 value = field.value
+            elif isinstance(field, ft.Switch):
+                value = field.value
+            elif isinstance(field, ft.Button):
+                value = field.data.value
+                if isinstance(value, datetime.datetime):
+                    value = value.replace(tzinfo=tz_sistema).date()
+            elif isinstance(field, ft.Dropdown):
+                value = field.value
+                TYPE = MODEL._metadata[TABLE]["schema"][column]["metadata"][
+                    "sql_type"
+                ]
+                REFERENCES = MODEL._metadata[TABLE]["schema"][column][
+                    "metadata"
+                ]["foreign_key"]["second_table"]
+                NAME = MODEL._metadata[REFERENCES]["columns"][1]
+                NEW_MODEL = MODEL._family[REFERENCES]
+                if TYPE == "FOREIGN KEY":
+                    domain = {f"{REFERENCES}__{NAME}__same": value}
+                    row, col = (
+                        NEW_MODEL
+                        .filter(**domain)
+                        .all(ids=True)
+                        .raw(align=True)
+                    )
+
+                    if row:
+                        value = row[0][0]
+
             else:
-                value = field.content
-            if required == "TRUE" and not value:
-                self.required_alert(campos=name)
+                self.uncharted_field()
                 return
 
-            data.insert(position, value)
-        kwargs = {self.model._table: [tuple(data)]}
+            if required == "TRUE" and value is None:
+                self.required_alert(column)
+                return
+
+            data[position] = value
+
+        timestamp_union = {}
+        # Union de datos timestamp
+        for table, item in timestamp.items():
+            for column, meta in item.items():
+                position = meta.get("position", "")
+                date_part = meta.get("date", "")
+                time_part = meta.get("time", "")
+                value = datetime.datetime.combine(date_part, time_part)
+                value = value.replace(tzinfo=tz_sistema)
+                timestamp_union[position] = value
+
+        merged = data | timestamp_union
+        sorted_dict = dict(sorted(merged.items()))
+        data = [None]
+        for k, value in sorted_dict.items():
+            data.append(value)
+
+        # INSERT MODELO ACTUAL
+        kwargs = {TABLE: [tuple(data)]}
         self.model.i(**kwargs)
+        self._calculate_chunk_()
+        self._fetch_data_()
+        self._construct_flet_rows_()
+        self._vector_length_()
+        self.update()
 
     def required_alert(self, campos: list | str = "Aun No Hay Campos") -> None:
-        """
-        Esta funcion construye la alerta de campo requerido en tiempo real.
-        """
+        """Funcion construye la alerta de campo requerido en tiempo real."""
         self.alert.title = "Restriccion"
         self.alert.content = ft.Text(
             value=f"Los siguientes campos son requeridos: {campos}"
         )
-        self.alert.actions=[
-            ft.TextButton(
-                "Cerrar",
-                on_click=lambda e: self.page.pop_dialog()
-                )
-            ]
+        self.alert.actions = [self.close_alert]
         self.alert.open = True
         self.page.show_dialog(self.alert)
-    
+
+    def uncharted_field(self) -> None:
+        """Levanta error si algun widget flet no es procesado"""
+        self.alert.title = "Tipo de dato invalido"
+        self.alert.content = (
+            "Instancia de Flet no procesada. "
+            "Posible error al invocar el metodo 'save_changes'"
+        )
+        self.alert.actions = [self.close_alert]
+        self.alert.open = True
+        self.page.show_dialog(self.alert)
+
+    def timestamp_error(self, widget) -> None:
+        """Alerta por si en algun momento los widgets de TIMESTAMP
+        no se procesan como diccionario de datos."""
+        self.alert.title = "Error Procesos 'TIMESTAMP'"
+        self.alert.content = (
+            "Al intentar organizar el input en widgets "
+            "TIMESTAMP. No se completo la indexacion de diccionarios."
+            f"Widget {widget}"
+        )
+        self.alert.actions = [self.close_alert]
+        self.alert.open = True
+        self.page.show_dialog(self.alert)
+
     # === FORMULARIO ===
 
     def form(self) -> None:
@@ -318,8 +407,7 @@ class DatatableORM(ft.Column):
         TABLE = self.table
         TITLE = ft.Container(
             content=ft.Text(
-                value="Vista Formulario",
-                weight=ft.FontWeight.W_900
+                value="Vista Formulario", weight=ft.FontWeight.W_900
             )
         )
 
@@ -331,7 +419,6 @@ class DatatableORM(ft.Column):
 
         # Iteracion de 'nombre columnas' crudas
         for COL in self.columns:
-
             # Extraccion de metadata y restricciones
             field_type = self.container[TABLE][COL].get("sql_type", "").upper()
             field_read_only = self.container[TABLE][COL].get("readonly", False)
@@ -344,14 +431,13 @@ class DatatableORM(ft.Column):
             # Si existe N:1 -> Definimos un nombre de columna para el query
             if sec_table:
                 name = (
-                    f"{sec_table}__{MODEL._metadata[sec_table]["columns"][1]}"
+                    f"{sec_table}__{MODEL._metadata[sec_table]['columns'][1]}"
                 )
             else:
                 name = None
 
             # Required puede ser usado para validar. Aunque pydantic ya lo hace.
             required = "TRUE" if field_required else "FALSE"
-
 
             field_default = self.container[TABLE][COL].get("default", None)
 
@@ -382,7 +468,7 @@ class DatatableORM(ft.Column):
                     label=field_name,
                     key=position,
                     disabled=field_read_only,
-                    value=field_default
+                    value=field_default,
                 )
                 self.form_controls.append(component)
 
@@ -392,7 +478,7 @@ class DatatableORM(ft.Column):
                     key=position,
                     disabled=field_read_only,
                     max_length=max_length,
-                    value=field_default
+                    value=field_default,
                 )
                 self.form_controls.append(component)
 
@@ -402,12 +488,12 @@ class DatatableORM(ft.Column):
                     input_filter=ft.InputFilter(
                         allow=True,
                         regex_string=r"^[0-9]*$",
-                        replacement_string=""
+                        replacement_string="",
                     ),
                     keyboard_type=ft.KeyboardType.NUMBER,
                     key=position,
                     disabled=field_read_only,
-                    value=field_default
+                    value=field_default,
                 )
                 self.form_controls.append(component)
 
@@ -417,12 +503,12 @@ class DatatableORM(ft.Column):
                     input_filter=ft.InputFilter(
                         allow=True,
                         regex_string=r"^\d*\.?\d*$",
-                        replacement_string=""
+                        replacement_string="",
                     ),
                     keyboard_type=ft.KeyboardType.NUMBER,
                     key=position,
                     disabled=field_read_only,
-                    value=field_default
+                    value=field_default,
                 )
                 self.form_controls.append(component)
 
@@ -432,36 +518,33 @@ class DatatableORM(ft.Column):
                     label=field_name,
                     key=position,
                     disabled=field_read_only,
-                    value=VAL
+                    value=VAL,
                 )
                 self.form_controls.append(component)
 
             elif field_type == "DATE":
-
                 if field_read_only:
                     component = ft.TextField(
                         label=field_name,
                         key=position,
                         read_only=field_read_only,
-                        value=field_default
+                        value=field_default,
                     )
 
                 else:
-                    picker = ft.DatePicker(
-                        value=field_default
-                    )
+                    picker = ft.DatePicker(value=field_default)
                     component = ft.Button(
-                        content=field_name,
+                        content=f"Selector Fecha - {field_name}",
                         key=position,
                         disabled=field_read_only,
                         on_click=lambda e: self.page.show_dialog(picker),
-                        icon=ft.Icons.CALENDAR_MONTH
+                        icon=ft.Icons.CALENDAR_MONTH,
+                        data=picker,
                     )
 
                 self.form_controls.append(component)
 
             elif field_type == "TIMESTAMP":
-
                 if field_default is not None:
                     DATE = field_default.split("T")[0]
                     TIME = field_default.split("T")[1]
@@ -470,36 +553,35 @@ class DatatableORM(ft.Column):
                     TIME = None
 
                 if field_read_only:
-
                     component = ft.TextField(
                         label=field_name,
                         key=position,
                         disabled=field_read_only,
-                        value=field_default
+                        value=field_default,
                     )
                     self.form_controls.append(component)
 
                 else:
-                    self.date_picker.value = DATE
-                    self.time_picker.value = TIME
+                    date_picker = ft.DatePicker(value=DATE)
+                    time_picker = ft.TimePicker(value=TIME)
                     date_component = ft.Button(
-                        content=self.date_picker.value,
-                        key=f"dia__{position}",
+                        content=f"Selector Fecha - {field_name}",
+                        key=f"DATE__{position}",
                         disabled=field_read_only,
-                        on_click=lambda e:
-                            self.page.show_dialog(date_picker),
-                        icon=ft.Icons.CALENDAR_MONTH
+                        on_click=lambda e: self.page.show_dialog(date_picker),
+                        icon=ft.Icons.CALENDAR_MONTH,
+                        data=date_picker,
                     )
                     time_component = ft.Button(
-                        content=self.time_picker.value,
-                        key=f"hora__{position}",
+                        content=f"Selector Hora - {field_name}",
+                        key=f"TIME__{position}",
                         disabled=field_read_only,
-                        on_click=lambda e:
-                            self.page.show_dialog(time_picker),
-                            icon=ft.Icons.TIMER
+                        on_click=lambda e: self.page.show_dialog(time_picker),
+                        icon=ft.Icons.TIMER,
+                        data=time_picker,
                     )
 
-                    self.form_controls.append(date_component)    
+                    self.form_controls.append(date_component)
                     self.form_controls.append(time_component)
 
             elif field_type == "FOREIGN KEY":
@@ -514,11 +596,11 @@ class DatatableORM(ft.Column):
                 component = ft.Dropdown(
                     label=field_name,
                     key=position,
-                    value = None,
+                    value=None,
                     options=[
-                        ft.DropdownOption(key=str(op.upper()), text=str(op))
+                        ft.DropdownOption(key=str(op), text=str(op))
                         for op in OPTIONS
-                    ]
+                    ],
                 )
 
                 self.form_controls.append(component)
@@ -529,27 +611,22 @@ class DatatableORM(ft.Column):
         # Controles formulario de campo, fusion con controles estaticos.
         controls.extend(self.form_controls)
 
-        # Boton de guardar
-        controls.append(
+        # Boton de guardar (Comienzo de controladores)
+        controls.insert(
+            0,
             ft.Button(
                 content="Guardar Cambios",
                 key="save",
                 icon=ft.Icons.SAVE,
-                on_click=self.save_changes
-            )
+                on_click=self.save_changes,
+            ),
         )
 
         # Se declara una vista de scroll vertical para los formularios.
         self.form_widget = ft.ListView(
-                controls=[
-                    ft.Column(
-                        controls=controls,
-                        spacing=20,
-                        expand=True
-                    )
-                ],
+            controls=[ft.Column(controls=controls, spacing=20, expand=True)],
             expand=True,
-            horizontal=False
+            horizontal=False,
         )
 
     # === CAPA SUPERIOR; MONTAR WIDGETS ===
