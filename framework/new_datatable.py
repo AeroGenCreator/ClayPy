@@ -370,6 +370,7 @@ class DatatableORM(ft.Column):
         self._fetch_data_()
         self._construct_flet_rows_()
         self._vector_length_()
+        self.datatable.rows = self.flet_rows
         self.update()
 
     def required_alert(self, campos: list | str = "Aun No Hay Campos") -> None:
