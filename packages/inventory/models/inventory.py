@@ -14,8 +14,7 @@ class Inventory(PanCakesORM):
     saleable = datatype.Bool(comment="Es Vendible")
     extras = datatype.Text(comment="Notas Extras")
     sold = datatype.TimeStamp(
-        comment="Fecha Hora Venta",
-        default=datatype.TimeStamp.now()
+        comment="Fecha Hora Venta"
     )
     registry = datatype.Date(
         comment="Fecha Ingreso"

@@ -122,8 +122,8 @@ class DatatableORM(ft.Column):
         # Filas FLet
         self.flet_rows = [
             ft.DataRow(
-                on_select_change=lambda e: self.current_row,  # Seleccion fila.
-                selected=False,
+                on_select_change=self.current_row,  # Seleccion fila.
+                selected=False,  # Este argumento muestra el check
                 cells=[ft.DataCell(ft.Text(cell)) for cell in row],
             )
             for row in self.rows
@@ -251,10 +251,30 @@ class DatatableORM(ft.Column):
             self.sidebar_container.content = self.form_widget
         self.update()
 
-    def current_row(self) -> None:
-        pass
+    def current_row(self, e) -> None:
+        """
+        Se dispara si se selecciona una fila del datatable:
+        1. Limpia el estado de seleccion en todas las filas (Elimina bug visual)
+        2. Si no Sidebar -> Formulario & Seleccion fila actual, abre Sidebar.
+        3. Si Sidebar -> Cierra Sidebar, limpia contenido, no selecciona fila.
+        """
+        for row in self.flet_rows:
+            row.selected = False
+        self.datatable.rows = self.flet_rows
+        status = self.sidebar_container.visible
+        if status:
+            self.sidebar_container.visible = not self.sidebar_container.visible
+            self.sidebar_container.content = None
+        else:
+            e.control.selected = not e.control.selected
+            self.sidebar_container.visible = not self.sidebar_container.visible
+            current_row = [v.content.value for v in e.control.cells]
+            update_data = dict(zip(self.columns, current_row))
+            self.form(update_data=update_data)
+            self.sidebar_container.content = self.form_widget
+        self.update()
 
-    def save_changes(self, e) -> None:
+    def save_changes(self, e, u) -> None:
 
         # Status Barra lateral
         status = self.sidebar_container.visible
@@ -321,10 +341,7 @@ class DatatableORM(ft.Column):
                 if TYPE == "FOREIGN KEY" and value is not None:
                     domain = {f"{REFERENCES}__{NAME}__same": value}
                     row, col = (
-                        NEW_MODEL
-                        .filter(**domain)
-                        .all(ids=True)
-                        .raw(align=True)
+                        NEW_MODEL.filter(**domain).all(ids=True).raw(align=True)
                     )
 
                     if row:
@@ -346,6 +363,12 @@ class DatatableORM(ft.Column):
                 position = meta.get("position", "")
                 date_part = meta.get("date", "")
                 time_part = meta.get("time", "")
+
+                validate = ((date_part is None), (time_part is None))
+                if any(validate):
+                    self.required_alert(campos=[column, position])
+                    return
+
                 value = datetime.datetime.combine(date_part, time_part)
                 value = value.replace(tzinfo=tz_sistema)
                 timestamp_union[position] = value
@@ -365,6 +388,9 @@ class DatatableORM(ft.Column):
             self.sidebar_container.content = None
 
         # Insertar datos modelo actual
+        import ipdb
+
+        ipdb.set_trace()
         self.model.i(**kwargs)
         self._calculate_chunk_()
         self._fetch_data_()
@@ -409,7 +435,7 @@ class DatatableORM(ft.Column):
 
     # === FORMULARIO ===
 
-    def form(self) -> None:
+    def form(self, update_data=None) -> None:
         """Creacion de formulario 'Nuevo' o 'Registro'"""
 
         # Constantes
@@ -449,7 +475,11 @@ class DatatableORM(ft.Column):
             # Required puede ser usado para validar. Aunque pydantic ya lo hace.
             required = "TRUE" if field_required else "FALSE"
 
-            field_default = self.container[TABLE][COL].get("default", None)
+            if update_data is not None:
+                default = self.container[TABLE][COL].get("default", None)
+                field_default = update_data.get(COL, default)
+            else:
+                field_default = self.container[TABLE][COL].get("default", None)
 
             # Extraccion de restricciones unicas de campo
             constraints = MODEL._metadata[TABLE]["schema"][COL]["constraints"]
@@ -533,6 +563,16 @@ class DatatableORM(ft.Column):
                 self.form_controls.append(component)
 
             elif field_type == "DATE":
+                validate = (
+                    (field_default is not None),
+                    (not isinstance(field_default, datetime.date)),
+                )
+                if all(validate):
+                    FORMAT = "%Y-%m-%d"
+                    field_default = datetime.datetime.strptime(
+                        field_default, FORMAT
+                    )
+
                 if field_read_only:
                     component = ft.TextField(
                         label=field_name,
@@ -544,7 +584,7 @@ class DatatableORM(ft.Column):
                 else:
                     picker = ft.DatePicker(value=field_default)
                     component = ft.Button(
-                        content=f"Selector Fecha - {field_name}",
+                        content=f"{field_name}",
                         key=position,
                         disabled=field_read_only,
                         on_click=lambda e: self.page.show_dialog(picker),
@@ -555,8 +595,10 @@ class DatatableORM(ft.Column):
                 self.form_controls.append(component)
 
             elif field_type == "TIMESTAMP":
-
-                if field_read_only:
+                if field_read_only or isinstance(field_default, str):
+                    field_read_only = (
+                        True if isinstance(field_default, str) else False
+                    )
                     component = ft.TextField(
                         label=field_name,
                         key=position,
@@ -569,7 +611,7 @@ class DatatableORM(ft.Column):
                     date_picker = ft.DatePicker(value=None)
                     time_picker = ft.TimePicker(value=None)
                     date_component = ft.Button(
-                        content=f"Selector Fecha - {field_name}",
+                        content=f"{field_name}",
                         key=f"DATE__{position}",
                         disabled=field_read_only,
                         on_click=lambda e: self.page.show_dialog(date_picker),
@@ -577,7 +619,7 @@ class DatatableORM(ft.Column):
                         data=date_picker,
                     )
                     time_component = ft.Button(
-                        content=f"Selector Hora - {field_name}",
+                        content=f"{field_name}",
                         key=f"TIME__{position}",
                         disabled=field_read_only,
                         on_click=lambda e: self.page.show_dialog(time_picker),
@@ -590,17 +632,37 @@ class DatatableORM(ft.Column):
 
             elif field_type == "FOREIGN KEY":
                 sub_model = MODEL._family[sec_table]
+                sub_table = sub_model._table
                 ROW, COL = sub_model.select(name).all().raw(align=True)
 
+                selection = None
                 if ROW:
                     OPTIONS = list(ROW[0])
+                    if field_default:
+                        domain = {
+                            f"{sub_table}__{sub_table}_id__same": int(
+                                field_default
+                            )
+                        }
+                        element = (
+                            sub_model.select(name)
+                            .filter(**domain)
+                            .all()
+                            .raw(align=True)
+                        )
+                        search = element[0][0] if element else None
+                        try:
+                            indice = OPTIONS.index(*search)
+                            selection = OPTIONS[indice]
+                        except IndexError:
+                            selection = None
                 else:
                     OPTIONS = []
 
                 component = ft.Dropdown(
                     label=field_name,
                     key=position,
-                    value=None,
+                    value=selection,
                     options=[
                         ft.DropdownOption(key=str(op), text=str(op))
                         for op in OPTIONS
@@ -622,7 +684,7 @@ class DatatableORM(ft.Column):
                 content="Guardar Cambios",
                 key="save",
                 icon=ft.Icons.SAVE,
-                on_click=self.save_changes,
+                on_click=lambda e: self.save_changes(e, u=True),
             ),
         )
 
