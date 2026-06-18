@@ -172,11 +172,22 @@ class DatatableORM(ft.Column):
         )
 
     def _table_container_(self):
-        """Se monta el componente 'Datatable' en un contenedor"""
+        """
+        Se envuelve el componente datatable con un Row
+        Permite el scroll horizontal con ADAPTIVE
+        Se coloca en un container con scroll vertical.
+        """
         self.datatable_container = ft.Container(
             content=ft.ListView(
-                controls=[self.datatable], expand=True, horizontal=True
-            ),  # Permite 'scroll' horizontal
+                controls=[
+                    ft.Row(
+                        controls=[self.datatable],
+                        scroll=ft.ScrollMode.ADAPTIVE
+                    )
+                ],
+                expand=True,
+                horizontal=False # Permite 'scroll' horizontal
+            ),
             bgcolor=ft.Colors.BLACK_12,
             border_radius=10,
             padding=5,
@@ -191,7 +202,7 @@ class DatatableORM(ft.Column):
             bgcolor=ft.Colors.BLACK_12,
             border_radius=10,
             padding=5,
-            expand=True,
+            expand=1,
             visible=False,  # Este campo controla si se muestra o no.
         )
 
@@ -274,7 +285,7 @@ class DatatableORM(ft.Column):
             self.sidebar_container.content = self.form_widget
         self.update()
 
-    def save_changes(self, e, u) -> None:
+    def save_changes(self, e, update=False) -> None:
 
         # Status Barra lateral
         status = self.sidebar_container.visible
@@ -375,23 +386,33 @@ class DatatableORM(ft.Column):
 
         merged = data | timestamp_union
         sorted_dict = dict(sorted(merged.items()))
-        data = [None]
+
+        # Creacion lista final de datos ordenados.
+        data = []
         for k, value in sorted_dict.items():
             data.append(value)
 
-        # kwargs - modelo actual
-        kwargs = {TABLE: [tuple(data)]}
+        if update:
+            kwargs = {}
+            # El indice de la fila actual.
+            current_row_index = data.pop(0)
+            # Iteracion de los datos ordenados sin el index.
+            for index, elemento in enumerate(data, start=1):
+                arg = f"{TABLE}__{self.columns[index]}__{self.columns[0]}__same"
+                kwargs.update({arg: (elemento, current_row_index)})
+            self.model.u(**kwargs)
+        else:
+            # kwargs - modelo actual
+            kwargs = {TABLE: [tuple(data)]}
+            # Insertar datos modelo actual
+            self.model.i(**kwargs)
 
         # Cerrar sidebar - Limpiar contenido
         if status:
             self.sidebar_container.visible = not self.sidebar_container.visible
             self.sidebar_container.content = None
 
-        # Insertar datos modelo actual
-        import ipdb
-
-        ipdb.set_trace()
-        self.model.i(**kwargs)
+        # Refrescar el frontend
         self._calculate_chunk_()
         self._fetch_data_()
         self._construct_flet_rows_()
@@ -439,6 +460,8 @@ class DatatableORM(ft.Column):
         """Creacion de formulario 'Nuevo' o 'Registro'"""
 
         # Constantes
+        # Bandera, controlar el tipo de insercion de datos.
+        UPDATE = False if update_data is None else True
         MODEL = self.model
         TABLE = self.table
         TITLE = ft.Container(
@@ -446,6 +469,10 @@ class DatatableORM(ft.Column):
                 value="Vista Formulario", weight=ft.FontWeight.W_900
             )
         )
+
+        # Resetear bandera si es una primera insercion de un modelo limpio.
+        if update_data is not None:
+            UPDATE = True if update_data[self.columns[0]] else False
 
         # Titulo 'Vista Formulario'
         controls = [TITLE]
@@ -460,9 +487,9 @@ class DatatableORM(ft.Column):
             field_read_only = self.container[TABLE][COL].get("readonly", False)
             field_required = self.container[TABLE][COL].get("required", False)
             sec_table = self.container[TABLE][COL].get("second_table", False)
-            field_pk = self.container[TABLE][COL].get("primary_key", False)
             field_position = self.container[TABLE][COL].get("position", "")
             field_name = self.container[TABLE][COL].get("label", "")
+            default = self.container[TABLE][COL].get("default", None)
 
             # Si existe N:1 -> Definimos un nombre de columna para el query
             if sec_table:
@@ -476,8 +503,8 @@ class DatatableORM(ft.Column):
             required = "TRUE" if field_required else "FALSE"
 
             if update_data is not None:
-                default = self.container[TABLE][COL].get("default", None)
                 field_default = update_data.get(COL, default)
+
             else:
                 field_default = self.container[TABLE][COL].get("default", None)
 
@@ -497,10 +524,6 @@ class DatatableORM(ft.Column):
                 f"{required}__"  # Si es campo requerido
                 f"{str(uuid.uuid4())}"  # Codigo unico
             )
-
-            # Si el campo es un PrimaryKey NO renderizamos en formulario.
-            if field_pk:
-                continue
 
             # Se renderizan todos los widgets (segun el campo pasado)
             if field_type == "TEXT":
@@ -595,10 +618,8 @@ class DatatableORM(ft.Column):
                 self.form_controls.append(component)
 
             elif field_type == "TIMESTAMP":
-                if field_read_only or isinstance(field_default, str):
-                    field_read_only = (
-                        True if isinstance(field_default, str) else False
-                    )
+                if field_read_only or default:
+                    field_read_only = True
                     component = ft.TextField(
                         label=field_name,
                         key=position,
@@ -684,7 +705,7 @@ class DatatableORM(ft.Column):
                 content="Guardar Cambios",
                 key="save",
                 icon=ft.Icons.SAVE,
-                on_click=lambda e: self.save_changes(e, u=True),
+                on_click=lambda e: self.save_changes(e, update=UPDATE),
             ),
         )
 
