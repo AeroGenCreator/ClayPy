@@ -14,6 +14,9 @@ DataTableORM.
 from dataclasses import dataclass
 from typing import Callable, Dict, Optional
 
+# Terceros
+import flet as ft
+
 # ClayPy
 from .datatable import DataTableORM
 
@@ -25,3 +28,10 @@ class SaveEntry:
     key: str  # Identificador unico
     function: Callable[[Dict, "DataTableORM"], None]  # Funcion on_click
     icon: Optional[str] = None  # Icono
+
+
+@dataclass
+class NavigationBarOption:
+    label: str
+    view: ft.Column
+    path: str

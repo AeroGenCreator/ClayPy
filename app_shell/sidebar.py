@@ -47,40 +47,58 @@ class Sidebar(ft.Column):
         3. Controladres 'Boton' - Ruta Vista
         4. Logo
         """
+
+        # Declaracion de rutas y botones para el sidebar.
         self.PATHS = {}
         self.BUTTON = []
 
+        # Valida que existan las mismas llaves en la petición de menu y vista.
         MENU_KEYS = list(self.menu.keys())
         VIEW_KEYS = list(self.view.keys())
 
         if MENU_KEYS != VIEW_KEYS:
-            raise KeyError
+            raise KeyError(
+                "Module name mismath when creating sidebar. "
+                f"{MENU_KEYS} : {VIEW_KEYS} missmatch."
+            )
 
-        for k in MENU_KEYS:
+        # Iteración de llaves.
+        # Se puede acceder a ambos diccionarios;
+        # gracias a las llaves compartidas.
+        for modulo in MENU_KEYS:
 
-            menu_pack = self.menu.get(k)
-            view_pack = self.view.get(k)
+            # Diccionarios de datos por moduloo (menu | vista)
+            menu_pack = self.menu.get(modulo)
+            view_pack = self.view.get(modulo)
 
+            # Configuración del boton de app.
             label = menu_pack.get("label", "")
             route = menu_pack.get("route", "")
-            emoji = menu_pack.get("icons", "").upper()
+            icons = menu_pack.get("icons", "").upper()
 
+            # Ruta a la vista del modulo cargado.
             path = view_pack.get("path", "")
             clas = view_pack.get("class", "")
 
             validate = (
                 (label == ""),
                 (route == ""),
-                (emoji == ""),
+                (icons == ""),
                 (path == ""),
                 (clas == ""),
             )
 
             if any(validate):
-                raise ValueError
+                raise ValueError(
+                    "Informacion clave faltante en la declaración de mainifest."
+                )
 
-            self.PATHS = {k: path}
+            # Se almacena "modulo" | "ruta a vista."
+            self.PATHS = {modulo: path}
 
+            # Creacion de boton principal de app.
+            # Carga de función de redirección: self.go_to()
+            # Recibe la ruta a la vista principal.
             button = ft.TextButton(
                     content=label,
                     width=215,
@@ -88,7 +106,7 @@ class Sidebar(ft.Column):
                         bgcolor={"": ft.Colors.GREY_900},
                         color={"": ft.Colors.WHITE}
                     ),
-                    icon=getattr(ft.Icons, emoji, None),
+                    icon=getattr(ft.Icons, icons, None),
                     on_click=lambda e, r=path, c=clas: self.go_to(
                         e,
                         route=r,
@@ -104,5 +122,10 @@ class Sidebar(ft.Column):
         self.controls = self.BUTTON
 
     def go_to(self, _, route, view) -> None:
+        """
+        El obbjeto "shell" cuenta con una función:
+        'view_extraction': La cual monta la vista 'main' del modulo
+        gracias a la ruta que dispara el boton construido en 'sidebar'.
+        """
         self.shell.view_extraction(route=route, view=view)
 

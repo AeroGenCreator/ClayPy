@@ -7,11 +7,12 @@ class MainContainer(ft.Container):
     parametros de manera dinamica y controlada.
     Asi mismo acceso direco a .content="vista" para carga de paquetes.
     """
+
     def __init__(self, content):
         super().__init__()
         self.content = content
-        self.expand = True
-        self.padding=20
-        self.bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST
-        self.border_radius=10
+        self.expand = 11
+        self.padding = 20
+        self.bgcolor = ft.Colors.SURFACE_CONTAINER_HIGHEST
+        self.border_radius = 10
         self.alignment = ft.Alignment.CENTER

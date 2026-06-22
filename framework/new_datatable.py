@@ -181,12 +181,11 @@ class DatatableORM(ft.Column):
             content=ft.ListView(
                 controls=[
                     ft.Row(
-                        controls=[self.datatable],
-                        scroll=ft.ScrollMode.ADAPTIVE
+                        controls=[self.datatable], scroll=ft.ScrollMode.ADAPTIVE
                     )
                 ],
                 expand=True,
-                horizontal=False # Permite 'scroll' horizontal
+                horizontal=False,  # Permite 'scroll' horizontal
             ),
             bgcolor=ft.Colors.BLACK_12,
             border_radius=10,
@@ -464,6 +463,8 @@ class DatatableORM(ft.Column):
         UPDATE = False if update_data is None else True
         MODEL = self.model
         TABLE = self.table
+        ONE2MANY = "1:N"
+
         TITLE = ft.Container(
             content=ft.Text(
                 value="Vista Formulario", weight=ft.FontWeight.W_900
@@ -517,9 +518,12 @@ class DatatableORM(ft.Column):
             lt = constraints.get("lt", False)
 
             # Position es una llave unica que almacena metadata 'procesamiento'.
+            COL_LABEL = MODEL._metadata[TABLE]["schema"][COL]["metadata"][
+                "comment"
+            ]
             position = (
                 f"{TABLE}__"  # Nombre de Tabla
-                f"{COL}__"  # Columna "crudo"
+                f"{COL_LABEL}__"  # Columna "crudo"
                 f"{str(field_position)}__"  # Posicion en la tabla
                 f"{required}__"  # Si es campo requerido
                 f"{str(uuid.uuid4())}"  # Codigo unico
@@ -708,6 +712,13 @@ class DatatableORM(ft.Column):
                 on_click=lambda e: self.save_changes(e, update=UPDATE),
             ),
         )
+
+        # RENDERIZA DINAMICO 1:N SOBRE UN CONTENEDOR CON SCROLLIN.
+        # AUN EN CONSTRUCCIÓN
+        for k, v in MODEL.schema.items():
+            value = v["metadata"]["sql_type"]
+            if value == ONE2MANY:
+                controls.append(ft.TextField(value=value))
 
         # Se declara una vista de scroll vertical para los formularios.
         self.form_widget = ft.ListView(

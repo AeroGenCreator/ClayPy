@@ -10,3 +10,9 @@ def get_inventory():
     return DatatableORM(
         model=model
         )
+
+def get_categories():
+    model = models.categories.Categories
+    return DatatableORM(
+        model=model
+    )

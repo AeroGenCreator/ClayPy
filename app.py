@@ -8,7 +8,9 @@ from app_shell.shell import ClayPyShell
 from app_shell.sidebar import Sidebar
 from framework.package_loader import package_loader, run_models
 
+# Lectura de los manifest
 loaded_menu, loaded_view, loaded_models = package_loader()
+# Ejecución de los modelos.
 run_models(models_pack=loaded_models)
 
 def main(page: ft.Page):
