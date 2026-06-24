@@ -11,9 +11,6 @@ Se carga:
 import importlib
 from pathlib import Path
 
-# Modulos Terceros
-import flet as ft
-
 # La ruta aqui es estatica. Modificar para ser leida desde un .env
 IMPORT_COMPLEMENT = "packages"
 PATH = Path.cwd() / IMPORT_COMPLEMENT
@@ -93,12 +90,13 @@ def load_models(models_list: list):
             CLASS = getattr(module, class_name, None)
             # Si alguna ruta no se resuleve, mostrar error.
             if CLASS is None:
-                raise(
+                raise (
                     f"Cannot import the following model: {class_name}."
                     "Make sure to be specific with the route and the class."
                 )
 
-def content_constructor():
+
+def mapper(content: dict, sidebar_button: dict):
     """
     Ejemplo de ruta a las instancias de "topbar" - "contenido respuesta"
     {
@@ -108,13 +106,7 @@ def content_constructor():
             ]
         }
     }
-    Debe retornar una lista de contenidos para contenedor.
-    Ejemplo: [{"paquete": {"item_1": flet.Contenido, "item_2": flet.Contenido}}]
-    """
-    pass
 
-def sidebar_button_constructor():
-    """
     {
         'inventory': {
             'label': 'Inventario',
@@ -122,5 +114,65 @@ def sidebar_button_constructor():
             'icons': 'all_inbox'
         }
     }
+
+    ============================================================================
+    Ejemplo de salida:
+    [
+        {
+            'inventory': {
+                'sidebar': {
+                    'label': 'Inventario',
+                    'icon': 'ALL_INBOX',
+                    'function': get_inventory
+                },
+                'navigation': {
+                    'inventory': get_inventory,
+                    'category': get_categories
+                }
+            }
+        }
+    ]
     """
-    pass
+    # Iterar paquetes:
+    mapped_controllers = []
+    for package, data in content.items():
+        # Diccionario por modulo
+        dicc = {}
+        dicc[package] = {}
+
+        # Armar boton sidebar
+        sidebar_declaration = sidebar_button.get(package, None)
+        if sidebar_declaration is None:
+            raise KeyError(f"No Sidebar controllers found for {package}.")
+
+        label = sidebar_declaration.get("label", None)
+        path = sidebar_declaration.get("path", None)
+        icon = sidebar_declaration.get("icon", "ALL_INBOX")
+        function = sidebar_declaration.get("function", None)
+
+        file = importlib.import_module(path)
+        event = getattr(file, function, None)
+
+        validate = ((label is None), (event is None))
+        if any(validate):
+            raise ValueError("__manifest__; 'menu' declaration error.")
+
+        dicc[package]["sidebar"] = {
+            "label": label,
+            "icon": icon,
+            "function": event.function,
+        }
+
+        dicc[package]["navigation"] = {}
+        for controller_path, controllers in data.items():
+            module = importlib.import_module(controller_path)
+            for control in controllers:
+                function = getattr(module, control, None)
+                if function is None:
+                    raise ValueError(f"Invalid function found in {control}.")
+
+                dicc[package]["navigation"].update({control: function.function})
+
+        mapped_controllers.append(dicc)
+
+    return mapped_controllers

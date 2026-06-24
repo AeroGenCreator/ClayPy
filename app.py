@@ -3,19 +3,18 @@
 # Carga de metadata
 import flet as ft
 
-from claypy.package_loader import read_manifest, load_models
-
 from app_shell.container import MainContainer
 from app_shell.shell import ClayPyShell
 from app_shell.sidebar import Sidebar
+from claypy.package_loader import load_models, mapper, read_manifest
 
 # 1. Correccion; Lectura del manifest
 container_items, sidebar_button, dynamic_models = read_manifest()
 # 2. Carga de todos los modelos declarados en el maniest
 load_models(dynamic_models)
-# 3. Construccion de contenidos (boton navegacion - contenido)
-import ipdb; ipdb.set_trace()
-
+# 3. Mapea "Boton" | "evento"
+controllers = mapper(content=container_items, sidebar_button=sidebar_button)
+# PENDIENTE: SHELL, CONTAINER, SIDEBAR(event handler)
 
 """from framework.package_loader import package_loader, run_models
 

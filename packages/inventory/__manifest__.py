@@ -3,8 +3,9 @@ PACKAGE = {
     "menu":
         {
         "label": "Inventario",
-        "route": "packages.inventory",
-        "icons": "all_inbox"
+        "path": "packages.inventory.views.items",
+        "icons": "all_inbox",
+        "function": "default"
         },
     "container": {
         "packages.inventory.views.items": ["inventory", "category"]
