@@ -14,18 +14,18 @@ PACKAGE = {
     "menu":
         {
         "label": "Inventario",
-        "route": "packages.inventory",
-        "icons": "all_inbox"
+        "path": "packages.inventory.views.items",
+        "icons": "all_inbox",
+        "function": "default"
         },
-    "view": {
-        "path": "packages.inventory.views.main_view",
-        "class": "View"
+    "container": {
+        "packages.inventory.views.items": ["inventory", "category"]
         },
     "models": [
         {
         "Inventory": "packages.inventory.models.inventory",
-        "Categories": "packages.inventory.models.categories"
-        }
+        "Category": "packages.inventory.models.category"
+        },
     ]
 }
 ```

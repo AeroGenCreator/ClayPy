@@ -12,7 +12,7 @@ def get_inventory():
         )
 
 def get_categories():
-    model = models.categories.Categories
+    model = models.category.Category
     return DatatableORM(
         model=model
     )

@@ -4,6 +4,7 @@
 import flet as ft
 
 from claypy.container import MainContainer, ShellContaniner
+from claypy.nautilus_shell import EjePrincipal
 from claypy.package_loader import load_models, mapper, read_manifest
 
 # 1. Correccion; Lectura del manifest
@@ -11,7 +12,7 @@ container_items, sidebar_button, dynamic_models = read_manifest()
 # 2. Carga de todos los modelos declarados en el maniest
 load_models(dynamic_models)
 # 3. Mapea "Boton" | "evento"
-controllers = mapper(content=container_items, sidebar_button=sidebar_button)
+modulos = mapper(content=container_items, sidebar_button=sidebar_button)
 # PENDIENTE: SHELL, CONTAINER, SIDEBAR(event handler)
 
 
@@ -49,23 +50,26 @@ def main(page: ft.Page):
     page.title = "ClayPy"
     page.window.width = 1920
     page.window.height = 1080
+    page.theme = ft.Theme(color_scheme_seed=ft.Colors.GREEN)
+    page.dark_theme = ft.Theme(color_scheme_seed=ft.Colors.BLUE)
+
+    # Construccion del eje principal de la aplicacion.
+    eje_principal = EjePrincipal(modulos=modulos, pagina=page)
 
     # Este contenedor debe ser de login.
     main_container = MainContainer(
-        contenido=ft.Column(
-            controls=[
-                ft.Text("Hola")
-            ]
-        ),
+        contenido=None,
         pagina=page
     )
 
     # Este contenedor renderiza la aplicación.
     shell_container = ShellContaniner(
-        contenido=None,
+        contenido=eje_principal,
         pagina=page
     )
 
+    # La alternancia entre Login Y Modulos debe ser declarada.
+    # Si una exista la otra se oculta y viceversa.
     page.add(
         main_container,
         shell_container

@@ -11,6 +11,8 @@ class MainContainer(ft.Container):
         self.padding = 10
         self.contenido = contenido
         self.pagina = pagina
+        # Lo mantengo en false mientras no desarrolle el login.
+        self.expand=False
         self.montar_contenido()
 
     def montar_contenido(self):
@@ -33,6 +35,7 @@ class ShellContaniner(ft.Container):
         self.padding = 10
         self.contenido = contenido
         self.pagina = pagina
+        self.expand = True
         self.montar_contenido()
 
     def montar_contenido(self):

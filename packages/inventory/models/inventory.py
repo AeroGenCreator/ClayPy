@@ -4,7 +4,7 @@ from pancakes.sql import datatype
 
 class Inventory(PanCakesORM):
     _table = "inventory"
-    _depends = ["categories"]
+    _depends = ["category"]
 
     name = datatype.Char(comment="Nombre Producto", required=True)
     qty = datatype.Int(comment="Cantidad Stock", required=True)
@@ -13,8 +13,8 @@ class Inventory(PanCakesORM):
     extras = datatype.Text(comment="Notas Extras")
     sold = datatype.TimeStamp(comment="Fecha Hora Venta")
     registry = datatype.Date(comment="Fecha Ingreso")
-    categories_id = datatype.ForeignKey(
+    category_id = datatype.ForeignKey(
         comment="Producto Categoria M:1",
-        second_table="categories",
-        column_id="categories_id",
+        second_table="category",
+        column_id="category_id",
     )
