@@ -8,9 +8,37 @@ class EjePrincipal(ft.Row):
         self.pagina = pagina
         # sidebar contenedor
         self.sidebar = ft.Container(content=None)
+        # navegador
+        self.navegador = ft.Container(content=None)
         # contenido_vista_contendor
         self.contenido_vista = ft.Container(content=None)
-        self.contruir_botones()
+        self.construir_botones_sidebar()
+
+    def navegar_modulo(self):
+        pass
+
+    def construir_navegacion(self, modulo):
+        metadata = getattr(self, modulo, None)
+        if metadata is None:
+            raise ValueError("Error when building navigation bar.")
+
+        nav_buttons = []
+        for label, function in metadata.items():
+            nav_buttons.append(
+                ft.Button(
+                    content=label,
+                    on_click=self.navegar_modulo
+                )
+            )
+
+        self.navegador = ft.Container(
+            content=ft.ListView(
+                ft.Row(
+                    controls=nav_buttons
+                )
+            ),
+            expand=1
+        )
 
     def manejar_click(self, e):
         boton = e.control
@@ -21,14 +49,23 @@ class EjePrincipal(ft.Row):
         first_key = list(metadata.keys())[0]
         function = metadata[first_key]
         view = function()
-        self.contenido_vista = ft.Container(
-            content=ft.Column(controls=view),
+        self.construir_navegacion(modulo=modulo)
+        self.tabla = ft.Container(
+            content=ft.Row(
+                controls=view
+            ),
             expand=11
+        )
+        self.contenido_vista = ft.Container(
+            content=ft.Column(
+                controls=[self.navegador, self.tabla]
+            ),
+            expand=10
         )
         self.controls = [self.sidebar, self.contenido_vista]
         self.pagina.update()
 
-    def contruir_botones(self):
+    def construir_botones_sidebar(self):
 
         sidebar_botones = []
         for element in self.modulos:
@@ -64,10 +101,14 @@ class EjePrincipal(ft.Row):
 
         # Aqui se maneja la arquitectura de montado
         self.sidebar = ft.Container(
-            content=ft.Column(controls=sidebar_botones),
+            content=ft.ListView(
+                controls=ft.Column(
+                    controls=sidebar_botones
+                )
+            ),
             padding=10,
             border_radius=10,
-            expand=1
+            expand=2
         )
         self.controls = [self.sidebar, self.contenido_vista]
         self.pagina.update()

@@ -518,12 +518,10 @@ class DatatableORM(ft.Column):
             lt = constraints.get("lt", False)
 
             # Position es una llave unica que almacena metadata 'procesamiento'.
-            COL_LABEL = MODEL._metadata[TABLE]["schema"][COL]["metadata"][
-                "comment"
-            ]
+            COL_LABEL = MODEL._metadata[TABLE]["columns"][field_position]
             position = (
                 f"{TABLE}__"  # Nombre de Tabla
-                f"{COL_LABEL}__"  # Columna "crudo"
+                f"{COL_LABEL}__"  # Columna "en crudo"
                 f"{str(field_position)}__"  # Posicion en la tabla
                 f"{required}__"  # Si es campo requerido
                 f"{str(uuid.uuid4())}"  # Codigo unico
