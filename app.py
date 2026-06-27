@@ -3,9 +3,7 @@
 # Carga de metadata
 import flet as ft
 
-from app_shell.container import MainContainer
-from app_shell.shell import ClayPyShell
-from app_shell.sidebar import Sidebar
+from claypy.container import MainContainer, ShellContaniner
 from claypy.package_loader import load_models, mapper, read_manifest
 
 # 1. Correccion; Lectura del manifest
@@ -16,17 +14,18 @@ load_models(dynamic_models)
 controllers = mapper(content=container_items, sidebar_button=sidebar_button)
 # PENDIENTE: SHELL, CONTAINER, SIDEBAR(event handler)
 
-"""from framework.package_loader import package_loader, run_models
+
+"""
+#from app_shell.container import MainContainer
+#from app_shell.shell import ClayPyShell
+#from app_shell.sidebar import Sidebar
+from framework.package_loader import package_loader, run_models
 
 # Lectura de los manifest
 loaded_menu, loaded_view, loaded_models = package_loader()
 # Ejecución de los modelos.
-run_models(models_pack=loaded_models)"""
+run_models(models_pack=loaded_models)
 
-def main(page: ft.Page):
-    page.title = "ClayPy Framework"
-    page.window.width = 1920
-    page.window.height = 1080
 
     container = MainContainer(content=None)
     sidebar = Sidebar(
@@ -43,6 +42,35 @@ def main(page: ft.Page):
             vertical_alignment=ft.CrossAxisAlignment.STRETCH
         )
     )
+"""
+
+
+def main(page: ft.Page):
+    page.title = "ClayPy"
+    page.window.width = 1920
+    page.window.height = 1080
+
+    # Este contenedor debe ser de login.
+    main_container = MainContainer(
+        contenido=ft.Column(
+            controls=[
+                ft.Text("Hola")
+            ]
+        ),
+        pagina=page
+    )
+
+    # Este contenedor renderiza la aplicación.
+    shell_container = ShellContaniner(
+        contenido=None,
+        pagina=page
+    )
+
+    page.add(
+        main_container,
+        shell_container
+    )
+
 
 if __name__ == "__main__":
     ft.run(main)
